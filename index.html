@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S3G × 杖剑传说 项目排期总工作台</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --text: #20242a;
+      --muted: #6f7782;
+      --line: #d9dde3;
+      --orange: #f58228;
+      --orange-soft: #fff0e3;
+      --blue: #08a9d8;
+      --blue-soft: #dff5fb;
+      --green: #2f9e70;
+      --green-soft: #e2f4ec;
+      --purple: #7a61c9;
+      --purple-soft: #eee9fb;
+      --weekend: #eceeef;
+      --shadow: 0 10px 30px rgba(24, 31, 40, .08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+    button, select, input, textarea { font: inherit; }
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(245, 130, 40, .28); outline-offset: 2px; }
+    .app { max-width: 1680px; margin: 0 auto; padding: 22px; }
+    .hero { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 16px; }
+    .eyebrow { color: var(--orange); font-weight: 700; letter-spacing: .08em; }
+    h1 { margin: 4px 0 3px; font-size: clamp(24px, 3vw, 34px); line-height: 1.2; }
+    .sub { color: var(--muted); }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tabs, .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+    button, select { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+    button.active { background: var(--text); color: #fff; border-color: var(--text); }
+    .summary { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { margin-top: 3px; font-size: 23px; font-weight: 700; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 14px; }
+    .panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .panel-head h2, .detail h2 { margin: 0; font-size: 18px; }
+    .month-nav { display: flex; gap: 6px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; }
+    .calendar-wrap { overflow-x: auto; }
+    .calendar { min-width: 760px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--line); }
+    .weekday { background: #fafafa; color: var(--muted); padding: 8px; text-align: center; font-weight: 600; }
+    .day { min-height: 116px; padding: 8px; background: #fff; cursor: pointer; }
+    .day:hover { background: #fffaf6; }
+    .day.outside { background: #fafafa; color: #b7bcc3; }
+    .day.weekend:not(.outside) { background: #f2f3f4; }
+    .day.today { box-shadow: inset 0 0 0 2px var(--orange); }
+    .date-row { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+    .count { color: var(--muted); font-size: 11px; font-weight: 400; }
+    .event { display: block; width: 100%; margin-top: 6px; padding: 5px 6px; border: 0; border-left: 4px solid currentColor; border-radius: 5px; text-align: left; font-size: 12px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event.production { color: #087da0; background: var(--blue-soft); }
+    .event.milestone { color: #c65c0d; background: var(--orange-soft); }
+    .event.revision { color: #2f7f5d; background: var(--green-soft); }
+    .event.s3g.production { color: #6245ad; background: var(--purple-soft); }
+    .event.s3g { box-shadow: inset -3px 0 0 var(--purple); }
+    .event.zj { box-shadow: inset -3px 0 0 var(--orange); }
+    .event.delayed { color: #b42318; background: #fde8e8; }
+    .event[draggable="true"] { cursor: grab; }
+    .event[draggable="true"]:active { cursor: grabbing; }
+    .day.drag-over { background: #fff4e9; box-shadow: inset 0 0 0 3px var(--orange); }
+    .drag-help { padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .detail { padding: 16px; min-height: 260px; }
+    .detail-date { color: var(--orange); font-weight: 700; margin-bottom: 10px; }
+    .detail-empty { color: var(--muted); }
+    .detail-item { padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .detail-item:last-child { border-bottom: 0; }
+    .type { display: inline-block; margin-bottom: 5px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .type.production { color: #087da0; background: var(--blue-soft); }
+    .type.milestone { color: #c65c0d; background: var(--orange-soft); }
+    .type.revision { color: #2f7f5d; background: var(--green-soft); }
+    .type.delayed { color: #b42318; background: #fde8e8; }
+    .project-tag { display: inline-block; margin: 0 5px 5px 0; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .project-tag.s3g { color: #6245ad; background: var(--purple-soft); }
+    .project-tag.zj { color: #c65c0d; background: var(--orange-soft); }
+    .detail-name { font-weight: 700; }
+    .detail-range { color: var(--muted); margin-top: 2px; font-size: 12px; }
+    .detail-actions { margin-top: 8px; }
+    .detail-actions button { padding: 5px 8px; font-size: 12px; }
+    .gantt-wrap { overflow-x: auto; padding-bottom: 4px; }
+    .gantt { min-width: 1450px; }
+    .gantt-row { display: grid; grid-template-columns: 250px repeat(34, minmax(32px, 1fr)); min-height: 44px; border-bottom: 1px solid var(--line); }
+    .gantt-row:last-child { border-bottom: 0; }
+    .gantt-cell { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; border-right: 1px solid #eceef1; font-size: 11px; }
+    .gantt-cell.weekend { background: var(--weekend); }
+    .gantt-cell.today { box-shadow: inset 2px 0 0 var(--orange); }
+    .gantt-label { position: sticky; left: 0; z-index: 5; justify-content: flex-start; padding: 7px 10px; background: #fff; font-size: 12px; font-weight: 600; border-right: 1px solid var(--line); }
+    .gantt-head { position: sticky; top: 0; z-index: 4; background: #fafafa; font-weight: 700; }
+    .gantt-month { color: var(--muted); font-weight: 400; }
+    .bar-cell { width: 100%; margin: 6px 0; min-height: 30px; color: transparent; }
+    .bar-cell.production { background: var(--blue); }
+    .bar-cell.milestone { background: var(--orange); }
+    .bar-cell.revision { background: var(--green); }
+    .bar-cell.s3g.production { background: var(--purple); }
+    .bar-cell.delayed { background: #d64545; }
+    .bar-cell.start { border-radius: 6px 0 0 6px; }
+    .bar-cell.end { border-radius: 0 6px 6px 0; }
+    .bar-cell.start.end { border-radius: 6px; }
+    .bar-text { position: absolute; z-index: 2; left: 6px; right: 3px; color: #fff; font-weight: 700; white-space: nowrap; overflow: visible; pointer-events: none; }
+    .source { margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .workspace.report-mode { grid-template-columns: minmax(0, 1fr); }
+    .workspace.report-mode .detail { display: none; }
+    .workspace.manage-mode { grid-template-columns: minmax(0, 1fr); }
+    .workspace.manage-mode .detail { display: none; }
+    .weekly { padding: 18px; }
+    .weekly-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .field { display: grid; gap: 5px; }
+    .field label { color: var(--muted); font-size: 12px; font-weight: 600; }
+    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: #fff; color: var(--text); }
+    textarea { min-height: 72px; resize: vertical; line-height: 1.55; }
+    .week-input { width: 220px; }
+    .weekly-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .primary { border-color: var(--orange); background: var(--orange); color: #fff; font-weight: 700; }
+    .ghost-danger { color: #b44545; }
+    .report-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 16px; }
+    .project-editor-list { display: grid; gap: 12px; }
+    .project-editor { position: relative; display: grid; grid-template-columns: 180px 1fr; gap: 10px 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+    .project-editor .wide { grid-column: 2; }
+    .remove-project { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border: 0; background: transparent; color: #a44; }
+    .output-card { position: sticky; top: 12px; align-self: start; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+    .output-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 13px; border-bottom: 1px solid var(--line); background: #fafafa; }
+    .output-head strong { font-size: 15px; }
+    .report-output { min-height: 430px; margin: 0; padding: 15px; white-space: pre-wrap; overflow-wrap: anywhere; color: #30343a; font: 13px/1.75 "Microsoft YaHei", "PingFang SC", sans-serif; }
+    .copy-status { min-height: 20px; padding: 0 13px 10px; color: var(--green); font-size: 12px; }
+    .report-archive { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(0, 1.25fr); gap: 16px; margin-top: 16px; }
+    .archive-card { border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+    .archive-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fafafa; }
+    .archive-head strong { font-size: 15px; }
+    .archive-help { color: var(--muted); font-size: 12px; }
+    .archive-list { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; padding: 12px; }
+    .archive-empty { padding: 26px 14px; color: var(--muted); text-align: center; }
+    .archive-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fafafa; }
+    .archive-period { font-weight: 700; }
+    .archive-meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .archive-actions { display: flex; gap: 5px; }
+    .archive-actions button { padding: 5px 8px; font-size: 12px; }
+    .evaluation-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+    .evaluation-controls .field { min-width: 148px; }
+    .evaluation-output { min-height: 300px; }
+    .schedule-editor { padding: 18px; }
+    .schedule-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .schedule-editor-help { color: var(--muted); font-size: 12px; }
+    .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .schedule-editor-list { display: grid; gap: 8px; }
+    .schedule-editor-list { overflow-x: auto; }
+    .schedule-row { display: grid; grid-template-columns: 120px 72px minmax(220px, 1fr) 140px 140px 140px 120px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; min-width: 1320px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
+    .schedule-row input, .schedule-row select { min-width: 0; padding: 7px 8px; }
+    .schedule-row .direction-input:disabled { opacity: .45; background: #f0f1f3; }
+    .weekdays-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
+    .weekdays-toggle input { width: auto; }
+    .schedule-empty { padding: 30px; color: var(--muted); text-align: center; }
+    .save-status { min-height: 20px; color: var(--green); font-size: 12px; }
+    .workspace.duration-mode { grid-template-columns: minmax(0, 1fr); }
+    .workspace.duration-mode .detail { display: none; }
+    .duration-panel { padding: 18px; }
+    .duration-stats { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .duration-stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+    .duration-stat-label { color: var(--muted); font-size: 12px; }
+    .duration-stat-value { margin-top: 3px; font-size: 20px; font-weight: 700; }
+    .duration-help { margin-bottom: 14px; color: var(--muted); font-size: 12px; }
+    .duration-chart { display: grid; gap: 9px; }
+    .duration-row { display: grid; grid-template-columns: minmax(220px, 310px) minmax(160px, 1fr) 64px; gap: 12px; align-items: center; }
+    .duration-name { min-width: 0; }
+    .duration-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .duration-range { color: var(--muted); font-size: 11px; }
+    .duration-track { height: 24px; border-radius: 6px; background: #eceef1; overflow: hidden; }
+    .duration-bar { height: 100%; min-width: 8px; border-radius: 6px; background: var(--blue); }
+    .duration-bar.s3g { background: var(--purple); }
+    .duration-bar.milestone { background: var(--orange); }
+    .duration-bar.revision { background: var(--green); }
+    .duration-bar.delayed { background: #d64545; }
+    .duration-value { font-weight: 700; text-align: right; white-space: nowrap; }
+    [hidden] { display: none !important; }
+    @media (max-width: 980px) {
+      .hero { align-items: flex-start; flex-direction: column; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .workspace { grid-template-columns: 1fr; }
+      .detail { min-height: auto; }
+      .report-grid { grid-template-columns: 1fr; }
+      .report-archive { grid-template-columns: 1fr; }
+      .output-card { position: static; }
+      .schedule-row { grid-template-columns: 120px 70px minmax(220px, 1fr) 130px 130px 130px 110px minmax(100px, .5fr) 72px 52px 52px; }
+      .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
+    }
+    @media (max-width: 560px) {
+      .app { padding: 12px; }
+      .summary { grid-template-columns: 1fr 1fr; }
+      .metric-value { font-size: 19px; }
+      .controls { align-items: stretch; flex-direction: column; }
+      .project-editor { grid-template-columns: 1fr; }
+      .project-editor .wide { grid-column: 1; }
+      .week-input { width: 100%; }
+      .duration-stats { grid-template-columns: 1fr; }
+      .duration-row { grid-template-columns: 1fr 52px; gap: 5px 8px; }
+      .duration-track { grid-column: 1; }
+      .duration-value { grid-column: 2; grid-row: 2; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">S3G × 杖剑传说</div>
+        <h1>项目排期总工作台</h1>
+        <div class="sub">2026 年 9 月 7 日—10 月 10 日 · 两个项目统一日历与甘特图</div>
+      </div>
+      <div class="controls">
+        <div class="tabs" aria-label="视图切换">
+          <button type="button" class="active" data-view="calendar">日历</button>
+          <button type="button" data-view="gantt">甘特图</button>
+          <button type="button" data-view="duration">耗时统计</button>
+          <button type="button" data-view="manage">排期编辑</button>
+          <button type="button" data-view="weekly">周报</button>
+        </div>
+        <select id="projectFilter" aria-label="项目筛选">
+          <option value="all">全部项目</option>
+          <option value="zj">杖剑传说</option>
+          <option value="s3g">S3G</option>
+        </select>
+        <select id="typeFilter" aria-label="任务类型筛选">
+          <option value="all">全部类型</option>
+          <option value="milestone">提交节点</option>
+          <option value="production">制作任务</option>
+          <option value="revision">修改任务</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="项目概览">
+      <div class="card"><div class="metric-label">当前项目</div><div class="metric-value" id="metricProjects">2 个</div></div>
+      <div class="card"><div class="metric-label">排期事项</div><div class="metric-value" id="metricTasks">42 项</div></div>
+      <div class="card"><div class="metric-label">提交节点</div><div class="metric-value" id="metricMilestones">12 个</div></div>
+      <div class="card"><div class="metric-label">延期节点</div><div class="metric-value" id="metricDelayed">0 个</div></div>
+      <div class="card"><div class="metric-label">最晚节点</div><div class="metric-value" id="metricEnd">10 月 10 日</div></div>
+    </section>
+
+    <section class="workspace" id="workspace">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 id="viewTitle">2026 年 9 月</h2>
+          <div class="month-nav" id="monthNav">
+            <button type="button" id="prevMonth" aria-label="上个月">‹</button>
+            <button type="button" id="projectStart">项目开始</button>
+            <button type="button" id="nextMonth" aria-label="下个月">›</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--blue)"></i>杖剑制作</span>
+          <span><i class="swatch" style="background:var(--purple)"></i>S3G 制作</span>
+          <span><i class="swatch" style="background:var(--orange)"></i>提交节点</span>
+          <span><i class="swatch" style="background:var(--green)"></i>修改任务</span>
+          <span><i class="swatch" style="background:var(--weekend)"></i>休息日（含法定节假日）</span>
+        </div>
+        <div id="dragHelp" class="drag-help">拖动节点到其他日期可移动；按住 Alt 拖动可复制。右侧详情也可直接复制节点。</div>
+        <div id="calendarPanel" class="calendar-wrap"><div id="calendar" class="calendar"></div></div>
+        <div id="ganttPanel" class="gantt-wrap" hidden><div id="gantt" class="gantt"></div></div>
+        <div id="durationPanel" class="duration-panel" hidden>
+          <div class="duration-stats" aria-label="节点耗时概览">
+            <div class="duration-stat"><div class="duration-stat-label">节点总耗时</div><div class="duration-stat-value" id="durationTotal">—</div></div>
+            <div class="duration-stat"><div class="duration-stat-label">平均每节点</div><div class="duration-stat-value" id="durationAverage">—</div></div>
+            <div class="duration-stat"><div class="duration-stat-label">最长节点</div><div class="duration-stat-value" id="durationLongest">—</div></div>
+          </div>
+          <div class="duration-help">按当前项目和节点类型筛选统计计划耗时；起止日期均计入，勾选“仅工作日”的任务会自动扣除周末。</div>
+          <div id="durationChart" class="duration-chart" aria-live="polite"></div>
+        </div>
+        <div id="scheduleEditorPanel" class="schedule-editor" hidden>
+          <div class="schedule-editor-toolbar">
+            <div>
+              <div class="schedule-editor-help">日期列依次为：预计开始、预计结束、实际完成。实际完成日期留空视为正常；填写且晚于预计结束日时才判定延期。</div>
+              <div id="scheduleSaveStatus" class="save-status" aria-live="polite"></div>
+            </div>
+            <div class="schedule-editor-actions">
+              <button type="button" id="addScheduleTask">＋ 新增节点</button>
+              <button type="button" id="resetSchedule">恢复原始排期</button>
+            </div>
+          </div>
+          <div id="scheduleEditorList" class="schedule-editor-list"></div>
+        </div>
+        <div id="weeklyPanel" class="weekly" hidden>
+          <div class="weekly-toolbar">
+            <div class="field week-input">
+              <label for="weekLabel">汇报周期</label>
+              <input id="weekLabel" type="text" value="">
+            </div>
+            <div class="weekly-actions">
+              <button type="button" id="addProject">＋ 添加项目</button>
+              <button type="button" id="resetReport">恢复本周示例</button>
+              <button type="button" class="primary" id="generateReport">生成汇报</button>
+              <button type="button" id="saveReportSnapshot">保存本期预览</button>
+            </div>
+          </div>
+          <div class="report-grid">
+            <div id="projectEditors" class="project-editor-list"></div>
+            <section class="output-card" aria-label="汇报预览">
+              <div class="output-head"><strong>Leader 汇报预览</strong><button type="button" id="copyReport">复制全文</button></div>
+              <pre id="reportOutput" class="report-output"></pre>
+              <div id="copyStatus" class="copy-status" aria-live="polite"></div>
+            </section>
+          </div>
+          <div class="report-archive">
+            <section class="archive-card" aria-label="历史汇报预览">
+              <div class="archive-head">
+                <div><strong>过往预览</strong><div class="archive-help">同一周期再次保存会覆盖旧版本</div></div>
+                <button type="button" class="ghost-danger" id="clearReportHistory">清空历史</button>
+              </div>
+              <div id="reportHistoryList" class="archive-list"></div>
+            </section>
+            <section class="archive-card" aria-label="周期项目整体评估">
+              <div class="archive-head">
+                <div><strong>周期整体评估</strong><div class="archive-help">汇总所选周期内已保存的预览记录</div></div>
+                <div class="evaluation-controls">
+                  <div class="field"><label for="evaluationStart">开始日期</label><input id="evaluationStart" type="date"></div>
+                  <div class="field"><label for="evaluationEnd">结束日期</label><input id="evaluationEnd" type="date"></div>
+                  <button type="button" class="primary" id="generateEvaluation">生成评估</button>
+                  <button type="button" id="copyEvaluation">复制评估</button>
+                </div>
+              </div>
+              <pre id="evaluationOutput" class="report-output evaluation-output">保存至少一期汇报预览后，即可按周期生成项目整体评估。</pre>
+              <div id="evaluationStatus" class="copy-status" aria-live="polite"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel detail" aria-live="polite">
+        <div class="detail-date" id="detailDate">2026 年 9 月 7 日</div>
+        <h2>当日安排</h2>
+        <div id="detailBody"></div>
+        <div class="source">排期依据：杖剑传说与 S3G 的原始排期。</div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const now=new Date(), TODAY=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const zjTasks=[
+      ["资产确认","2026-09-07","2026-09-07","milestone","提交"],
+      ["创意需求会（对齐所有执行细节）","2026-09-08","2026-09-08","milestone","提交"],
+      ["布局示意图","2026-09-09","2026-09-10","milestone","提交"],
+      ["美术资产制作（道具、建筑、场景地编）","2026-09-10","2026-09-16","production","美术制作",true],
+      ["美术风格确认","2026-09-11","2026-09-11","milestone","提交"],
+      ["程序设计","2026-09-14","2026-09-18","production","程序制作",true],
+      ["初稿—可交互原型版本（含灯光、UI、音效）","2026-09-21","2026-09-21","milestone","提交"],
+      ["初稿修改","2026-09-22","2026-09-23","revision","修改"],
+      ["第二稿—完整版本（含UI、音效）","2026-09-24","2026-09-24","milestone","提交"],
+      ["第二稿修改","2026-09-28","2026-09-29","revision","修改"],
+      ["终稿—封包版","2026-09-30","2026-09-30","milestone","提交"],
+      ["终稿修改","2026-10-09","2026-10-10","revision","修改"]
+    ].map(([name,start,end,type,note,weekdaysOnly=false])=>({project:"zj",name,start,end,type,note,weekdaysOnly}));
+    const rawS3g=[
+      [1,"2026-09-23","2026-09-23","平面制作"],
+      [1,"2026-09-24","2026-09-24","动效制作"],
+      [1,"2026-09-28","2026-09-28","动效制作"],
+      [1,"2026-09-29","2026-09-30","基础功能开发／游戏玩法流程制作／特效制作"],
+      [1,"2026-10-08","2026-10-09","游戏玩法流程制作／美术效果优化／手感优化","production","优化"],
+      [1,"2026-10-10","2026-10-10","初稿提交","milestone","提交"],
+      [3,"2026-09-21","2026-09-21","平面制作"],
+      [3,"2026-09-22","2026-09-23","动效制作"],
+      [3,"2026-09-24","2026-09-24","基础功能开发／游戏玩法流程制作／特效制作"],
+      [3,"2026-09-28","2026-09-28","基础功能开发／游戏玩法流程制作／特效制作"],
+      [3,"2026-09-29","2026-09-30","游戏玩法流程制作／美术效果优化／手感优化","production","优化"],
+      [3,"2026-10-08","2026-10-08","初稿提交","milestone","提交"]
+    ];
+    const pad=n=>String(n).padStart(2,"0");
+    const CN_HOLIDAYS_2026=new Set([
+      "2026-01-01","2026-01-02","2026-01-03",
+      "2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23",
+      "2026-04-04","2026-04-05","2026-04-06",
+      "2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05",
+      "2026-06-19","2026-06-20","2026-06-21",
+      "2026-09-25","2026-09-26","2026-09-27",
+      "2026-10-01","2026-10-02","2026-10-03","2026-10-04","2026-10-05","2026-10-06","2026-10-07"
+    ]);
+    const CN_ADJUSTED_WORKDAYS_2026=new Set(["2026-01-04","2026-02-14","2026-02-28","2026-04-26","2026-05-09","2026-09-20","2026-10-10"]);
+    const s3gTasks=rawS3g.map(([direction,start,end,name,type="production",note="制作"])=>({project:"s3g",direction,name,start,end,type,note}));
+    const defaultTasks=[...zjTasks,...s3gTasks];
+    defaultTasks.forEach((task,index)=>{
+      task.id=`schedule-${index+1}`;
+      task.actualEnd="";
+      task.submit=task.type==="milestone"||task.note==="提交"||task.note==="确认";
+      if(task.type==="milestone") task.type="production";
+    });
+    const SCHEDULE_STORAGE_KEY="project-workbench-schedule-v3";
+    function cloneDefaultTasks(){return defaultTasks.map(task=>({...task}))}
+    function loadScheduleTasks(){
+      try {
+        const saved=JSON.parse(localStorage.getItem(SCHEDULE_STORAGE_KEY));
+        return Array.isArray(saved)&&saved.length?saved.map((task,index)=>{
+          const isRevision=task.type==="revision"||task.note==="修改";
+          return {...task,actualEnd:task.actualEnd||"",id:task.id||`saved-${index+1}`,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type};
+        }):cloneDefaultTasks();
+      } catch (_) { return cloneDefaultTasks() }
+    }
+    let tasks=loadScheduleTasks();
+    const typeNames={milestone:"提交节点",production:"制作任务",revision:"修改任务"}, weekdays=["日","一","二","三","四","五","六"];
+    const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
+    const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
+    const REPORT_HISTORY_SEED_KEY="project-workbench-report-history-screenshot-seed-v1";
+    const weeklyExample=[
+      {name:"灵犀-S3G",progress:"9 条已完成客审，客户反馈已同步监修。",next:"反馈到位后重新输出排期表并启动后续制作；周中跟进监修进度。",risk:"等待监修反馈。"},
+      {name:"雷霆-杖剑传说",progress:"5 条美术效果图正在根据客审意见修改。",next:"预计下周一提交初稿。",risk:"无。"},
+      {name:"Topgame-Enovy",progress:"当前暂无新增制作需求。",next:"新需求按隔周节奏跟进一次。",risk:"等待客户新需求。"},
+      {name:"IGG-DLS",progress:"已发布 9 条：3D 4 条、2D 5 条；待发布 3D 9 条。",next:"下周发布 3D 9 条；两周后根据投放数据确认是否启动 3D 迭代 4 条。",risk:"3D 迭代需等待两周投放数据。"}
+    ];
+    const builtInReportHistory=[
+      {
+        id:"screenshot-report-2026-08-17",period:"2026.08.17—2026.08.23",start:"2026-08-17",end:"2026-08-23",savedAt:"2026-08-17T18:52:00+08:00",source:"周报截图 · 8 月 17 日 18:52",
+        projects:[
+          {name:"Topgame-Enovy",progress:"已交付 8 条，其中 1 条于当天新交付；另有 2 条修改中，客户反馈较少。",next:"本周继续跟进已交付素材的发布情况。",risk:"无。"},
+          {name:"IGG-DLS",progress:"项目按排期正常推进，无延期；3D 已过审 5 条、2D 已过审 3 条，均在打包交付中。",next:"完成已过审素材的打包交付。",risk:"无。"}
+        ]
+      },
+      {
+        id:"screenshot-report-2026-08-24",period:"2026.08.24—2026.08.30",start:"2026-08-24",end:"2026-08-30",savedAt:"2026-08-24T18:21:00+08:00",source:"周报截图 · 8 月 24 日 18:21",
+        projects:[
+          {name:"Topgame-Enovy",progress:"已发布 8 条，另有 2 条修改中。",next:"提交修改时同步询问新需求；如仍未给到，则每周持续跟进提醒。",risk:"客户针对关卡数值仍在反复调试，具体验收时间暂时难以预估；供应商新版本反复出现基础 Bug，已要求加强内审，当前未影响修改提交周期。"},
+          {name:"IGG-DLS",progress:"3D 已过审 9 条：5 条本周发布、4 条待打包；另有 1 条修改中、剩余 3 条按排期推进。2D 已过审 5 条，等待打包。",next:"等待本周首批 5 条 3D 测试结果，确认后续打包交付方式；明后天继续跟进投放情况。",risk:"后续素材交付节奏取决于首批 3D 测试结果和打包方式确认。"}
+        ]
+      },
+      {
+        id:"screenshot-report-2026-08-31",period:"2026.08.31—2026.09.06",start:"2026-08-31",end:"2026-09-06",savedAt:"2026-08-31T18:48:00+08:00",source:"周报截图 · 8 月 31 日 18:48",
+        projects:[
+          {name:"Topgame-Enovy",progress:"已发布 8 条，待发布 2 条，计划次日发布。",next:"再次询问客户 9 月是否能提供新需求。",risk:"等待客户确认后续新需求。"},
+          {name:"IGG-DLS",progress:"3D 待发布 6 条、待打包 7 条，最迟次日完成打包；另有 3 条迭代需等待试玩发布后启动。2D 待发布 5 条。",next:"本周继续跟进待发布素材的发布情况。",risk:"供应商曾出现未按执行文档规范打包的问题，包括命名、尺寸、格式错误和文件缺漏；目前均已修改提交，后续仍需关注打包规范执行。"}
+        ]
+      },
+      {
+        id:"screenshot-report-2026-09-07",period:"2026.09.07—2026.09.13",start:"2026-09-07",end:"2026-09-13",savedAt:"2026-09-07T19:11:00+08:00",source:"周报截图 · 9 月 7 日 19:11",
+        projects:[
+          {name:"灵犀-S3G",progress:"客户完成脚本调整后将送监修，预计下周获得监修反馈；部分资产需求已于当天下午提出，正在等待客户重新提供。",next:"结合脚本反馈周期与客户重新确认初稿交付时间，并跟进缺失资产。",risk:"初稿时间依赖监修反馈周期；部分制作资产仍待客户提供。"},
+          {name:"雷霆-杖剑传说",progress:"排期已经提交客户，待客户确认后按排期推进。",next:"确认该项目是否投放 Google，并在客户确认后启动排期。",risk:"投放渠道尚未明确，项目排期待客户确认。"},
+          {name:"Topgame-Enovy",progress:"已发布 8 条，待发布 2 条；因上周涉及调整，正在等待客户确认发布时间。",next:"隔周跟进一次新需求。",risk:"2 条素材的发布时间待客户确认。"},
+          {name:"IGG-DLS",progress:"3D 13 条、2D 5 条及试玩／原工程打包均已交付，并完成本地归档。",next:"跟进客户本周完成投放；剩余 4 条 3D 迭代素材待投放数据产生后启动。",risk:"3D 迭代最早需等到下周或下下周获得投放数据后才能启动。"}
+        ]
+      }
+    ];
+    let weeklyProjects=loadWeeklyProjects();
+    let reportHistory=loadReportHistory();
+    let currentYear=2026,currentMonth=8,currentView="calendar",projectFilter="all",typeFilter="all",draggedTaskId="",dragCopy=false,dragDayOffset=0;
+    const el=id=>document.getElementById(id);
+    const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+    const isRestDay=d=>{const key=iso(d);if(CN_ADJUSTED_WORKDAYS_2026.has(key))return false;if(CN_HOLIDAYS_2026.has(key))return true;return d.getDay()===0||d.getDay()===6};
+    const visible=t=>(projectFilter==="all"||t.project===projectFilter)&&(typeFilter==="all"||(typeFilter==="milestone"?t.submit:t.type===typeFilter));
+    const activeOn=(t,d)=>{const key=iso(d);return key>=t.start&&key<=t.end&&!(t.weekdaysOnly&&isRestDay(d))};
+    const formatDate=s=>{const d=parse(s);return`${d.getMonth()+1} 月 ${d.getDate()} 日`};
+    const rangeText=t=>t.start===t.end?formatDate(t.start):`${formatDate(t.start)}—${formatDate(t.end)}`;
+    const projectLabel=t=>t.project==="s3g"?`S3G·方向${t.direction}`:"杖剑传说";
+    const taskKind=t=>t.submit?"milestone":t.type;
+    const delayDays=t=>{if(!t.actualEnd||t.actualEnd<=t.end)return 0;let count=0,date=parse(t.end),last=parse(t.actualEnd);date.setDate(date.getDate()+1);while(date<=last){if(!isRestDay(date))count++;date.setDate(date.getDate()+1)}return count};
+    const delayText=t=>delayDays(t)?`延期 ${delayDays(t)} 天`:"正常";
+    const compareTasks=(a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end)||projectLabel(a).localeCompare(projectLabel(b),"zh-CN")||a.name.localeCompare(b.name,"zh-CN");
+    const visibleTasks=()=>tasks.filter(visible).sort(compareTasks);
+    function projectBounds(){
+      if(!tasks.length)return{start:TODAY,end:TODAY};
+      return{start:tasks.reduce((min,t)=>t.start<min?t.start:min,tasks[0].start),end:tasks.reduce((max,t)=>t.end>max?t.end:max,tasks[0].end)};
+    }
+    function saveScheduleTasks(){
+      try { localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks)) } catch (_) {}
+      el("scheduleSaveStatus").textContent="已保存";
+      clearTimeout(saveScheduleTasks.timer);
+      saveScheduleTasks.timer=setTimeout(()=>el("scheduleSaveStatus").textContent="",1400);
+    }
+    function shiftedRange(task,targetStart){
+      const span=Math.round((parse(task.end)-parse(task.start))/86400000),end=parse(targetStart);
+      end.setDate(end.getDate()+span);
+      return{start:targetStart,end:iso(end)};
+    }
+    function placeTask(task,targetStart,copy=false){
+      const range=shiftedRange(task,targetStart);
+      if(copy){
+        const clone={...task,...range,actualEnd:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${task.name}（副本）`};
+        tasks.push(clone);
+      } else Object.assign(task,range);
+      saveScheduleTasks();render();showDetail(parse(targetStart));
+    }
+    function duplicateTask(task){placeTask(task,task.start,true)}
+    function updateTask(task,field,value){
+      if(field==="kind"){
+        task.submit=value==="milestone";
+        task.type=value==="revision"?"revision":"production";
+        if(value==="milestone"&&(!task.note||task.note==="制作"||task.note==="修改"))task.note="提交";
+        if(value!=="milestone"&&(task.note==="提交"||task.note==="确认"))task.note=value==="revision"?"修改":"制作";
+      } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
+      else if(field==="direction") task.direction=Math.max(1,Number(value)||1);
+      else task[field]=value;
+      if(task.start&&task.end&&task.end<task.start)task.end=task.start;
+      saveScheduleTasks();updateSummary();renderCalendar();renderGantt();renderDuration();
+    }
+    function renderScheduleEditors(){
+      const list=visibleTasks();
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目"><option value="zj" ${task.project==="zj"?"selected":""}>杖剑传说</option><option value="s3g" ${task.project==="s3g"?"selected":""}>S3G</option></select><input class="direction-input" data-task-field="direction" type="number" min="1" value="${task.direction||1}" aria-label="方向" ${task.project!=="s3g"?"disabled":""}><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
+        const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
+        updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
+        if(control.dataset.taskField==="project"||control.dataset.taskField==="kind"||control.dataset.taskField==="start")renderScheduleEditors();
+      }));
+      document.querySelectorAll('[data-task-field="name"],[data-task-field="note"]').forEach(control=>control.addEventListener("input",()=>{
+        const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(task)updateTask(task,control.dataset.taskField,control.value);
+      }));
+      document.querySelectorAll(".delete-schedule-task").forEach(button=>button.addEventListener("click",()=>{
+        const row=button.closest(".schedule-row"),task=tasks.find(item=>item.id===row.dataset.taskId);if(!task)return;
+        if(!confirm(`确认删除“${task.name}”吗？`))return;
+        tasks=tasks.filter(item=>item.id!==task.id);saveScheduleTasks();renderScheduleEditors();render();
+      }));
+      document.querySelectorAll(".duplicate-schedule-task").forEach(button=>button.addEventListener("click",()=>{
+        const row=button.closest(".schedule-row"),source=tasks.find(item=>item.id===row.dataset.taskId);if(!source)return;
+        const copy={...source,actualEnd:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${source.name}（副本）`};
+        tasks.push(copy);saveScheduleTasks();renderScheduleEditors();updateSummary();renderCalendar();renderGantt();renderDuration();
+        const copiedRow=document.querySelector(`[data-task-id="${copy.id}"]`);
+        copiedRow?.scrollIntoView({block:"center",behavior:"smooth"});
+        copiedRow?.querySelector(".task-name")?.select();
+      }));
+    }
+
+    function cloneWeeklyExample(){return weeklyExample.map(item=>({...item}))}
+    function defaultWeekLabel(){
+      const now=new Date(),day=now.getDay()||7,monday=new Date(now);
+      monday.setDate(now.getDate()-day+1);
+      const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);
+      const full=date=>`${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())}`;
+      return `${full(monday)}—${full(sunday)}`;
+    }
+    function loadWeeklyProjects(){
+      try { const saved=JSON.parse(localStorage.getItem(WEEKLY_STORAGE_KEY)); return Array.isArray(saved)&&saved.length?saved:cloneWeeklyExample() }
+      catch (_) { return cloneWeeklyExample() }
+    }
+    function saveWeeklyProjects(){
+      try { localStorage.setItem(WEEKLY_STORAGE_KEY,JSON.stringify(weeklyProjects)) } catch (_) {}
+    }
+    function loadReportHistory(){
+      try {
+        const saved=JSON.parse(localStorage.getItem(REPORT_HISTORY_STORAGE_KEY)),history=Array.isArray(saved)?saved:[];
+        if(localStorage.getItem(REPORT_HISTORY_SEED_KEY)!=="1"){
+          const ids=new Set(history.map(item=>item.id));
+          builtInReportHistory.forEach(item=>{if(!ids.has(item.id))history.push({...item,projects:item.projects.map(project=>({...project}))})});
+          localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(history));
+          localStorage.setItem(REPORT_HISTORY_SEED_KEY,"1");
+        }
+        return history;
+      }
+      catch (_) { return builtInReportHistory.map(item=>({...item,projects:item.projects.map(project=>({...project}))})) }
+    }
+    function saveReportHistory(){
+      try { localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(reportHistory)) } catch (_) {}
+    }
+    function normalizePeriod(period){
+      const matches=String(period).match(/(20\d{2})[.\/-](\d{1,2})[.\/-](\d{1,2})\D+(20\d{2})[.\/-](\d{1,2})[.\/-](\d{1,2})/);
+      if(!matches)return{start:"",end:""};
+      return{start:`${matches[1]}-${pad(matches[2])}-${pad(matches[3])}`,end:`${matches[4]}-${pad(matches[5])}-${pad(matches[6])}`};
+    }
+    function isNoRisk(value){return !String(value||"").trim()||/^(无|无。|暂无|暂无。|none)$/i.test(String(value).trim())}
+    function formatFullDate(value){if(!value)return"未标注日期";const date=parse(value);return`${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())}`}
+    function historySort(a,b){return (b.end||b.savedAt||"").localeCompare(a.end||a.savedAt||"")||(b.savedAt||"").localeCompare(a.savedAt||"")}
+    function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]))}
+    function syncWeeklyProjects(){
+      weeklyProjects=[...document.querySelectorAll(".project-editor")].map(card=>({
+        name:card.querySelector('[data-field="name"]').value.trim(),
+        progress:card.querySelector('[data-field="progress"]').value.trim(),
+        next:card.querySelector('[data-field="next"]').value.trim(),
+        risk:card.querySelector('[data-field="risk"]').value.trim()
+      }));
+      saveWeeklyProjects();
+    }
+    function renderWeeklyEditors(){
+      el("projectEditors").innerHTML=weeklyProjects.map((item,index)=>`<article class="project-editor" data-index="${index}"><button type="button" class="remove-project ghost-danger" aria-label="删除${escapeHtml(item.name||"项目")}">删除</button><div class="field"><label>项目名称</label><input data-field="name" value="${escapeHtml(item.name)}"></div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`).join("");
+      document.querySelectorAll(".project-editor input,.project-editor textarea").forEach(node=>node.addEventListener("input",()=>{syncWeeklyProjects();generateWeeklyReport()}));
+      document.querySelectorAll(".remove-project").forEach(button=>button.addEventListener("click",()=>{syncWeeklyProjects();weeklyProjects.splice(Number(button.closest(".project-editor").dataset.index),1);saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()}));
+    }
+    function generateWeeklyReport(){
+      if(document.querySelector(".project-editor")) syncWeeklyProjects();
+      const period=el("weekLabel").value.trim();
+      const sections=weeklyProjects.filter(item=>item.name||item.progress||item.next||item.risk).map((item,index)=>{
+        const lines=[`${index+1}. ${item.name||"未命名项目"}`];
+        if(item.progress) lines.push(`- 本周进展：${item.progress}`);
+        if(item.next) lines.push(`- 下一步：${item.next}`);
+        if(item.risk&&item.risk!=="无"&&item.risk!=="无。") lines.push(`- 待确认／风险：${item.risk}`);
+        return lines.join("\n");
+      });
+      el("reportOutput").textContent=`本周项目进度同步${period?`（${period}）`:""}\n\n${sections.join("\n\n")}`;
+      return el("reportOutput").textContent;
+    }
+    function saveReportSnapshot(){
+      const text=generateWeeklyReport(),period=el("weekLabel").value.trim()||"未命名周期",range=normalizePeriod(period),now=new Date();
+      const snapshot={id:`report-${Date.now()}`,period,start:range.start,end:range.end,savedAt:now.toISOString(),projects:weeklyProjects.map(item=>({...item})),text};
+      const existingIndex=reportHistory.findIndex(item=>(range.start&&range.end&&item.start===range.start&&item.end===range.end)||(!range.start&&item.period===period));
+      if(existingIndex>=0){snapshot.id=reportHistory[existingIndex].id;reportHistory.splice(existingIndex,1,snapshot)}else reportHistory.push(snapshot);
+      reportHistory.sort(historySort);saveReportHistory();renderReportHistory();setEvaluationDefaults();
+      el("copyStatus").textContent=existingIndex>=0?"已更新该周期的历史预览。":"已保存到过往预览。";
+      setTimeout(()=>el("copyStatus").textContent="",2200);
+    }
+    function renderReportHistory(){
+      const list=el("reportHistoryList");
+      if(!reportHistory.length){list.innerHTML='<div class="archive-empty">尚未保存汇报预览。</div>';return}
+      list.innerHTML=[...reportHistory].sort(historySort).map(item=>`<article class="archive-item" data-history-id="${escapeHtml(item.id)}"><div><div class="archive-period">${escapeHtml(item.period||`${formatFullDate(item.start)}—${formatFullDate(item.end)}`)}</div><div class="archive-meta">${item.projects?.length||0} 个项目 · ${escapeHtml(item.source||`保存于 ${new Date(item.savedAt).toLocaleString("zh-CN",{hour12:false})}`)}</div></div><div class="archive-actions"><button type="button" class="load-history">载入</button><button type="button" class="delete-history ghost-danger">删除</button></div></article>`).join("");
+      document.querySelectorAll(".load-history").forEach(button=>button.addEventListener("click",()=>{
+        const item=reportHistory.find(entry=>entry.id===button.closest(".archive-item").dataset.historyId);if(!item)return;
+        weeklyProjects=(item.projects||[]).map(project=>({...project}));saveWeeklyProjects();el("weekLabel").value=item.period||"";renderWeeklyEditors();generateWeeklyReport();
+        el("copyStatus").textContent="已载入历史预览，可继续编辑。";setTimeout(()=>el("copyStatus").textContent="",2200);
+      }));
+      document.querySelectorAll(".delete-history").forEach(button=>button.addEventListener("click",()=>{
+        const id=button.closest(".archive-item").dataset.historyId,item=reportHistory.find(entry=>entry.id===id);if(!item||!confirm(`确认删除“${item.period}”的历史预览吗？`))return;
+        reportHistory=reportHistory.filter(entry=>entry.id!==id);saveReportHistory();renderReportHistory();setEvaluationDefaults();generatePeriodEvaluation();
+      }));
+    }
+    function setEvaluationDefaults(){
+      const dated=reportHistory.filter(item=>item.start&&item.end);
+      if(!dated.length)return;
+      if(!el("evaluationStart").value)el("evaluationStart").value=dated.reduce((min,item)=>item.start<min?item.start:min,dated[0].start);
+      if(!el("evaluationEnd").value)el("evaluationEnd").value=dated.reduce((max,item)=>item.end>max?item.end:max,dated[0].end);
+    }
+    function generatePeriodEvaluation(){
+      const start=el("evaluationStart").value,end=el("evaluationEnd").value;
+      if(!start||!end){el("evaluationOutput").textContent="请先选择评估的开始和结束日期。";return el("evaluationOutput").textContent}
+      if(end<start){el("evaluationOutput").textContent="结束日期不能早于开始日期。";return el("evaluationOutput").textContent}
+      const selected=reportHistory.filter(item=>item.start&&item.end&&item.end>=start&&item.start<=end).sort((a,b)=>(a.start||"").localeCompare(b.start||""));
+      if(!selected.length){el("evaluationOutput").textContent=`${formatFullDate(start)}—${formatFullDate(end)} 暂无已保存的汇报预览，无法生成评估。`;return el("evaluationOutput").textContent}
+      const byProject=new Map();
+      selected.forEach(snapshot=>(snapshot.projects||[]).forEach(project=>{
+        const name=project.name||"未命名项目";if(!byProject.has(name))byProject.set(name,[]);byProject.get(name).push({...project,period:snapshot.period,start:snapshot.start,end:snapshot.end});
+      }));
+      const latest=[...byProject.entries()].map(([name,records])=>({name,records,latest:records[records.length-1]}));
+      const risky=latest.filter(item=>!isNoRisk(item.latest.risk));
+      const active=latest.filter(item=>!/暂无|无新增|等待新需求|未启动/.test(item.latest.progress||""));
+      const judgement=risky.length===0?"整体推进平稳，当前记录中没有明确风险项。":risky.length===1?`整体可控，但需重点跟进 ${risky[0].name} 的风险。`:`整体存在并行风险，需要优先协调 ${risky.map(item=>item.name).join("、")}。`;
+      const projectSections=latest.map(({name,records,latest})=>{
+        const progress=[...new Set(records.map(item=>item.progress).filter(Boolean))];
+        const risks=[...new Set(records.map(item=>item.risk).filter(value=>!isNoRisk(value)))];
+        const lines=[`【${name}】覆盖 ${records.length} 个汇报周期`];
+        if(progress.length)lines.push(`- 阶段进展：${progress.join("；")}`);
+        lines.push(`- 当前判断：${isNoRisk(latest.risk)?"暂无明确风险，按当前计划推进。":`存在待确认事项：${latest.risk}`}`);
+        if(risks.length>1)lines.push(`- 周期风险变化：${risks.join(" → ")}`);
+        if(latest.next)lines.push(`- 最新下一步：${latest.next}`);
+        return lines.join("\n");
+      });
+      const lines=[`项目周期整体评估（${formatFullDate(start)}—${formatFullDate(end)}）`,"",`一、数据概览`,`- 汇报记录：${selected.length} 期`,`- 覆盖项目：${byProject.size} 个`,`- 持续推进项目：${active.length} 个`,`- 当前有风险／待确认项目：${risky.length} 个`,"",`二、整体判断`,`- ${judgement}`,"",`三、项目总结`,projectSections.join("\n\n"),"",`四、管理建议`];
+      if(risky.length)lines.push(`- 优先闭环风险：${risky.map(item=>`${item.name}（${item.latest.risk}）`).join("；")}`);else lines.push("- 保持当前节奏，并在下一期预览中记录关键交付结果与新出现的风险。");
+      const nextSteps=latest.filter(item=>item.latest.next).map(item=>`${item.name}：${item.latest.next}`);
+      if(nextSteps.length)lines.push(`- 下一阶段重点：${nextSteps.join("；")}`);
+      el("evaluationOutput").textContent=lines.join("\n");return el("evaluationOutput").textContent;
+    }
+    async function copyText(text,statusId,message){
+      try { await navigator.clipboard.writeText(text) }
+      catch (_) { const area=document.createElement("textarea");area.value=text;area.style.position="fixed";area.style.opacity="0";document.body.append(area);area.select();document.execCommand("copy");area.remove() }
+      el(statusId).textContent=message;setTimeout(()=>el(statusId).textContent="",2200);
+    }
+    async function copyWeeklyReport(){
+      await copyText(generateWeeklyReport(),"copyStatus","已复制，可直接粘贴到微信、飞书或邮件。");
+    }
+
+    function updateSummary(){
+      const list=visibleTasks(),projects=new Set(list.map(t=>t.project)),final=list.reduce((m,t)=>t.end>m?t.end:m,"");
+      el("metricProjects").textContent=`${projects.size} 个`;
+      el("metricTasks").textContent=`${list.length} 项`;
+      el("metricMilestones").textContent=`${list.filter(t=>t.submit).length} 个`;
+      el("metricDelayed").textContent=`${list.filter(t=>delayDays(t)>0).length} 个`;
+      el("metricEnd").textContent=final?formatDate(final):"—";
+    }
+    function showDetail(date){
+      const items=visibleTasks().filter(t=>activeOn(t,date));
+      el("detailDate").textContent=`${date.getFullYear()} 年 ${date.getMonth()+1} 月 ${date.getDate()} 日`;
+      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t);return`<div class="detail-item"><span class="project-tag ${t.project}">${projectLabel(t)}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div><div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
+      document.querySelectorAll(".copy-detail-task").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();const task=tasks.find(item=>item.id===button.dataset.taskId);if(task)duplicateTask(task)}));
+    }
+    function renderCalendar(){
+      const year=currentYear,first=new Date(year,currentMonth,1),last=new Date(year,currentMonth+1,0),cells=[];
+      weekdays.forEach(x=>cells.push(`<div class="weekday">${x}</div>`));
+      for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
+      for(let day=1;day<=last.getDate();day++){
+        const date=new Date(year,currentMonth,day),key=iso(date),items=visibleTasks().filter(t=>activeOn(t,date));
+        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="true" class="event ${t.project} ${t.submit?"milestone":t.type} ${delay?"delayed":""}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${projectLabel(t)} · ${escapeHtml(t.note)} · ${escapeHtml(t.name)}</button>`}).join("")}</div>`);
+      }
+      el("calendar").innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
+      document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
+        dayCell.addEventListener("click",()=>showDetail(parse(dayCell.dataset.date)));
+        dayCell.addEventListener("dragover",event=>{event.preventDefault();event.dataTransfer.dropEffect=event.altKey||dragCopy?"copy":"move";dayCell.classList.add("drag-over")});
+        dayCell.addEventListener("dragleave",event=>{if(!dayCell.contains(event.relatedTarget))dayCell.classList.remove("drag-over")});
+        dayCell.addEventListener("drop",event=>{event.preventDefault();dayCell.classList.remove("drag-over");const task=tasks.find(item=>item.id===draggedTaskId);if(!task)return;const copy=event.altKey||dragCopy,target=parse(dayCell.dataset.date);target.setDate(target.getDate()-dragDayOffset);draggedTaskId="";dragCopy=false;dragDayOffset=0;placeTask(task,iso(target),copy)});
+      });
+      document.querySelectorAll(".event[data-task-id]").forEach(eventNode=>{
+        eventNode.addEventListener("click",event=>{event.stopPropagation();showDetail(parse(eventNode.dataset.eventDate))});
+        eventNode.addEventListener("dragstart",event=>{draggedTaskId=eventNode.dataset.taskId;dragCopy=event.altKey;const task=tasks.find(item=>item.id===draggedTaskId);dragDayOffset=task?Math.round((parse(eventNode.dataset.eventDate)-parse(task.start))/86400000):0;event.dataTransfer.effectAllowed="copyMove";event.dataTransfer.setData("text/plain",draggedTaskId)});
+        eventNode.addEventListener("dragend",()=>{draggedTaskId="";dragCopy=false;dragDayOffset=0;document.querySelectorAll(".day.drag-over").forEach(dayCell=>dayCell.classList.remove("drag-over"))});
+      });
+    }
+    function dateRange(start,end){const a=[],d=parse(start),last=parse(end);while(d<=last){a.push(new Date(d));d.setDate(d.getDate()+1)}return a}
+    function renderGantt(){
+      const bounds=projectBounds(),dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
+      const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
+      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">【${projectLabel(t)}】${t.name}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.project} ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" title="${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${delayText(t)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:t.note}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
+      el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
+    }
+    function taskDuration(task){return dateRange(task.start,task.end).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
+    function renderDuration(){
+      const list=visibleTasks().map(task=>({...task,duration:taskDuration(task)})).sort((a,b)=>b.duration-a.duration||compareTasks(a,b));
+      const total=list.reduce((sum,task)=>sum+task.duration,0),average=list.length?total/list.length:0,max=Math.max(1,...list.map(task=>task.duration));
+      el("durationTotal").textContent=`${total} 节点天`;
+      el("durationAverage").textContent=list.length?`${average.toFixed(1)} 天`:'—';
+      el("durationLongest").textContent=list.length?`${list[0].duration} 天`:'—';
+      el("durationChart").innerHTML=list.length?list.map(task=>{
+        const kind=taskKind(task),percent=Math.max(2,task.duration/max*100),delay=delayDays(task);
+        return `<div class="duration-row"><div class="duration-name"><strong>【${projectLabel(task)}】${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${task.project} ${kind} ${delay?"delayed":""}" style="width:${percent}%"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
+      }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
+    }
+    function render(){
+      updateSummary();renderCalendar();renderGantt();renderDuration();
+      el("calendarPanel").hidden=currentView!=="calendar";
+      el("ganttPanel").hidden=currentView!=="gantt";
+      el("durationPanel").hidden=currentView!=="duration";
+      el("scheduleEditorPanel").hidden=currentView!=="manage";
+      el("weeklyPanel").hidden=currentView!=="weekly";
+      el("monthNav").hidden=currentView!=="calendar";
+      el("dragHelp").hidden=currentView!=="calendar";
+      document.querySelector(".legend").hidden=currentView==="weekly"||currentView==="manage";
+      el("workspace").classList.toggle("report-mode",currentView==="weekly");
+      el("workspace").classList.toggle("manage-mode",currentView==="manage");
+      el("workspace").classList.toggle("duration-mode",currentView==="duration");
+      el("projectFilter").hidden=currentView==="weekly";
+      el("typeFilter").hidden=currentView==="weekly";
+      if(currentView==="gantt"){const bounds=projectBounds();el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`}
+      if(currentView==="duration")el("viewTitle").textContent="节点计划耗时统计";
+      if(currentView==="manage"){el("viewTitle").textContent="排期节点编辑";renderScheduleEditors()}
+      if(currentView==="weekly"){el("viewTitle").textContent="每周项目进度汇报";generateWeeklyReport()}
+    }
+    document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{currentView=b.dataset.view;document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("active",x===b));render()}));
+    el("projectFilter").addEventListener("change",e=>{projectFilter=e.target.value;render();showDetail(parse(TODAY))});
+    el("typeFilter").addEventListener("change",e=>{typeFilter=e.target.value;render();showDetail(parse(TODAY))});
+    el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
+    el("nextMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth+1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
+    el("projectStart").addEventListener("click",()=>{const start=parse(projectBounds().start);currentYear=start.getFullYear();currentMonth=start.getMonth();renderCalendar();showDetail(start)});
+    el("addScheduleTask").addEventListener("click",()=>{
+      const bounds=projectBounds(),id=`schedule-${Date.now()}`;
+      tasks.push({id,project:projectFilter==="s3g"?"s3g":"zj",direction:1,name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false});
+      saveScheduleTasks();renderScheduleEditors();render();
+      document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
+    });
+    el("resetSchedule").addEventListener("click",()=>{if(!confirm("确认恢复原始排期？当前编辑内容将被覆盖。"))return;tasks=cloneDefaultTasks();saveScheduleTasks();const start=parse(projectBounds().start);currentYear=start.getFullYear();currentMonth=start.getMonth();renderScheduleEditors();render()});
+    el("weekLabel").addEventListener("input",generateWeeklyReport);
+    el("addProject").addEventListener("click",()=>{syncWeeklyProjects();weeklyProjects.push({name:"",progress:"",next:"",risk:""});renderWeeklyEditors();generateWeeklyReport();document.querySelector('.project-editor:last-child input').focus()});
+    el("resetReport").addEventListener("click",()=>{weeklyProjects=cloneWeeklyExample();saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()});
+    el("generateReport").addEventListener("click",generateWeeklyReport);
+    el("saveReportSnapshot").addEventListener("click",saveReportSnapshot);
+    el("copyReport").addEventListener("click",copyWeeklyReport);
+    el("generateEvaluation").addEventListener("click",generatePeriodEvaluation);
+    el("copyEvaluation").addEventListener("click",()=>copyText(generatePeriodEvaluation(),"evaluationStatus","评估已复制。"));
+    el("clearReportHistory").addEventListener("click",()=>{if(!reportHistory.length||!confirm("确认清空全部历史汇报预览吗？此操作无法撤销。"))return;reportHistory=[];saveReportHistory();renderReportHistory();el("evaluationOutput").textContent="保存至少一期汇报预览后，即可按周期生成项目整体评估。"});
+    el("weekLabel").value=defaultWeekLabel();
+    renderWeeklyEditors();
+    renderReportHistory();setEvaluationDefaults();
+    render();showDetail(parse(TODAY));
+  </script>
+</body>
+</html>
