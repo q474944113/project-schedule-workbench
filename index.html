@@ -157,6 +157,16 @@
     .schedule-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .schedule-editor-help { color: var(--muted); font-size: 12px; }
     .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+    .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 8px; align-items: center; }
+    .project-direction-option { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); white-space: nowrap; }
+    .project-direction-option input { width: auto; }
+    .project-manager-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .project-manager-item { display: inline-flex; align-items: center; gap: 7px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .project-manager-item input[type="color"] { width: 25px; height: 25px; padding: 1px; border-radius: 50%; cursor: pointer; }
+    .project-manager-count { color: var(--muted); font-size: 11px; }
+    .project-manager-item button { padding: 4px 7px; font-size: 11px; }
+    .legend-projects { display: contents; }
     .schedule-editor-list { display: grid; gap: 8px; }
     .schedule-editor-list { overflow-x: auto; }
     .schedule-row { display: grid; grid-template-columns: 120px 72px minmax(220px, 1fr) 140px 140px 140px 120px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; min-width: 1320px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
@@ -196,6 +206,7 @@
       .report-archive { grid-template-columns: 1fr; }
       .output-card { position: static; }
       .schedule-row { grid-template-columns: 120px 70px minmax(220px, 1fr) 130px 130px 130px 110px minmax(100px, .5fr) 72px 52px 52px; }
+      .project-create { grid-template-columns: 1fr; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
     }
     @media (max-width: 560px) {
@@ -219,7 +230,7 @@
       <div>
         <div class="eyebrow">S3G × 杖剑传说</div>
         <h1>项目排期总工作台</h1>
-        <div class="sub">2026 年 9 月 7 日—10 月 10 日 · 两个项目统一日历与甘特图</div>
+        <div class="sub">多项目统一日历、甘特图与周报管理</div>
         <div id="cloudStatus" class="cloud-status connecting" role="status" aria-live="polite">云端连接中</div>
       </div>
       <div class="controls">
@@ -232,8 +243,6 @@
         </div>
         <select id="projectFilter" aria-label="项目筛选">
           <option value="all">全部项目</option>
-          <option value="zj">杖剑传说</option>
-          <option value="s3g">S3G</option>
         </select>
         <select id="typeFilter" aria-label="任务类型筛选">
           <option value="all">全部类型</option>
@@ -263,8 +272,7 @@
           </div>
         </div>
         <div class="legend">
-          <span><i class="swatch" style="background:var(--blue)"></i>杖剑制作</span>
-          <span><i class="swatch" style="background:var(--purple)"></i>S3G 制作</span>
+          <div id="projectLegend" class="legend-projects"></div>
           <span><i class="swatch" style="background:var(--orange)"></i>提交节点</span>
           <span><i class="swatch" style="background:var(--green)"></i>修改任务</span>
           <span><i class="swatch" style="background:var(--weekend)"></i>休息日（含法定节假日）</span>
@@ -292,6 +300,14 @@
               <button type="button" id="resetSchedule">恢复原始排期</button>
             </div>
           </div>
+          <section class="project-manager" aria-label="项目管理">
+            <div class="project-create">
+              <input id="newProjectName" type="text" maxlength="40" placeholder="输入新项目名称">
+              <label class="project-direction-option"><input id="newProjectUsesDirection" type="checkbox"> 使用方向编号</label>
+              <button type="button" class="primary" id="addProjectDefinition">＋ 新增项目</button>
+            </div>
+            <div id="projectManagerList" class="project-manager-list"></div>
+          </section>
           <div id="scheduleEditorList" class="schedule-editor-list"></div>
         </div>
         <div id="weeklyPanel" class="weekly" hidden>
@@ -301,7 +317,7 @@
               <input id="weekLabel" type="text" value="">
             </div>
             <div class="weekly-actions">
-              <button type="button" id="addProject">＋ 添加项目</button>
+              <button type="button" id="addProject">＋ 添加周报项目</button>
               <button type="button" id="resetReport">恢复本周示例</button>
               <button type="button" class="primary" id="generateReport">生成汇报</button>
               <button type="button" id="saveReportSnapshot">保存本期预览</button>
@@ -344,7 +360,7 @@
         <div class="detail-date" id="detailDate">2026 年 9 月 7 日</div>
         <h2>当日安排</h2>
         <div id="detailBody"></div>
-        <div class="source">排期依据：杖剑传说与 S3G 的原始排期。</div>
+        <div class="source">排期依据：各项目原始排期与在线编辑记录。</div>
       </aside>
     </section>
   </main>
@@ -740,6 +756,12 @@
       if(task.type==="milestone") task.type="production";
     });
     const SCHEDULE_STORAGE_KEY="project-workbench-schedule-v3";
+    const PROJECTS_STORAGE_KEY="project-workbench-projects-v1";
+    const DEFAULT_PROJECTS=[
+      {id:"zj",name:"杖剑传说",color:"#f58228",usesDirection:false},
+      {id:"s3g",name:"S3G",color:"#7a61c9",usesDirection:true}
+    ];
+    const PROJECT_COLORS=["#2f9e70","#d64545","#087da0","#b7791f","#c2418c","#4f6fad","#7c5c3e","#607d8b"];
     const SUPABASE_URL="https://ldwwlqqxycempshfbphl.supabase.co";
     const SUPABASE_KEY="sb_publishable__oLtPp1Y9qTYsEDbm3snAg_uq-WLGsQ";
     const CLOUD_STATE_ID="main";
@@ -757,7 +779,20 @@
         }):cloneDefaultTasks();
       } catch (_) { return cloneDefaultTasks() }
     }
+    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project}))}
+    function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
+    function normalizeProjects(items,taskList=[]){
+      const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
+      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),usesDirection:Boolean(project.usesDirection||id==="s3g")})});
+      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],usesDirection:Boolean(task.direction)})}});
+      return result.length?result:cloneDefaultProjects();
+    }
+    function loadProjects(taskList){
+      try{return normalizeProjects(JSON.parse(localStorage.getItem(PROJECTS_STORAGE_KEY)),taskList)}
+      catch(_){return normalizeProjects(null,taskList)}
+    }
     let tasks=loadScheduleTasks();
+    let projects=loadProjects(tasks);
     const typeNames={milestone:"提交节点",production:"制作任务",revision:"修改任务"}, weekdays=["日","一","二","三","四","五","六"];
     const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
     const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
@@ -936,11 +971,12 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:1,tasks:tasks.map(item=>({...item})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:2,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
         localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));
+        localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));
         localStorage.setItem(WEEKLY_STORAGE_KEY,JSON.stringify(weeklyProjects));
         localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(reportHistory));
         localStorage.setItem(REPORT_HISTORY_SEED_KEY,"1");
@@ -953,6 +989,7 @@
         const isRevision=task.type==="revision"||task.note==="修改";
         return{...task,actualEnd:task.actualEnd||"",id:task.id||`cloud-${index+1}`,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type};
       });
+      projects=normalizeProjects(payload.projects,payload.tasks);
       weeklyProjects=payload.weeklyProjects.map(item=>({...item}));
       reportHistory=payload.reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))}));
       lastCloudVersion=Math.max(lastCloudVersion,Number(version)||0);
@@ -1003,7 +1040,9 @@
       const {data,error}=await cloudClient.from("workbench_state").select("payload,version,updated_at").eq("id",CLOUD_STATE_ID).maybeSingle();
       if(error)throw error;
       if(data?.payload){
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
+        if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
     }
     function subscribeCloudState(){
@@ -1036,7 +1075,12 @@
     const activeOn=(t,d)=>{const key=iso(d);return key>=t.start&&key<=t.end&&!(t.weekdaysOnly&&isRestDay(d))};
     const formatDate=s=>{const d=parse(s);return`${d.getMonth()+1} 月 ${d.getDate()} 日`};
     const rangeText=t=>t.start===t.end?formatDate(t.start):`${formatDate(t.start)}—${formatDate(t.end)}`;
-    const projectLabel=t=>t.project==="s3g"?`S3G·方向${t.direction}`:"杖剑传说";
+    const projectById=id=>projects.find(project=>project.id===id);
+    const projectName=id=>projectById(id)?.name||id||"未命名项目";
+    const projectColor=id=>validProjectColor(projectById(id)?.color);
+    const projectUsesDirection=id=>Boolean(projectById(id)?.usesDirection);
+    const projectLabel=t=>projectUsesDirection(t.project)?`${projectName(t.project)}·方向${t.direction||1}`:projectName(t.project);
+    const projectTint=id=>{const hex=projectColor(id).slice(1),r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return`rgba(${r},${g},${b},.13)`};
     const taskKind=t=>t.submit?"milestone":t.type;
     const delayDays=t=>{if(!t.actualEnd||t.actualEnd<=t.end)return 0;let count=0,date=parse(t.end),last=parse(t.actualEnd);date.setDate(date.getDate()+1);while(date<=last){if(!isRestDay(date))count++;date.setDate(date.getDate()+1)}return count};
     const delayText=t=>delayDays(t)?`延期 ${delayDays(t)} 天`:"正常";
@@ -1079,9 +1123,35 @@
       if(task.start&&task.end&&task.end<task.start)task.end=task.start;
       saveScheduleTasks();updateSummary();renderCalendar();renderGantt();renderDuration();
     }
+    function saveProjects(){
+      try{localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects))}catch(_){}
+      scheduleCloudSave();
+    }
+    function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}</option>`).join("")}
+    function renderProjectControls(){
+      const filter=el("projectFilter");
+      if(!projects.some(project=>project.id===projectFilter))projectFilter="all";
+      filter.innerHTML=`<option value="all">全部项目</option>${projects.map(project=>`<option value="${escapeHtml(project.id)}">${escapeHtml(project.name)}</option>`).join("")}`;
+      filter.value=projectFilter;
+      el("projectLegend").innerHTML=projects.map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}</span>`).join("");
+      el("projectManagerList").innerHTML=projects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length;return`<div class="project-manager-item" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><span class="project-manager-count">${count} 个节点</span><label class="project-direction-option"><input type="checkbox" class="project-direction-toggle" ${project.usesDirection?"checked":""}>方向编号</label><button type="button" class="rename-project">重命名</button><button type="button" class="delete-project ghost-danger">删除</button></div>`}).join("");
+      document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
+      document.querySelectorAll(".project-direction-toggle").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.usesDirection=input.checked;saveProjects();render()}));
+      document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects.forEach(item=>{if(item.name===previous)item.name=next});saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
+      document.querySelectorAll(".delete-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const count=tasks.filter(task=>task.project===project.id).length;if(count)return alert(`“${project.name}”还有 ${count} 个排期节点，请先移动或删除这些节点。`);if(projects.length===1)return alert("至少需要保留一个项目。");if(!confirm(`确认删除空项目“${project.name}”吗？`))return;projects=projects.filter(item=>item.id!==project.id);if(projectFilter===project.id)projectFilter="all";saveProjects();render()}));
+    }
+    function addProjectDefinition(){
+      const input=el("newProjectName"),name=input.value.trim();
+      if(!name){input.focus();return}
+      if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
+      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],usesDirection:el("newProjectUsesDirection").checked};
+      projects.push(project);
+      if(!weeklyProjects.some(item=>item.name===name)){weeklyProjects.push({name,progress:"",next:"",risk:""});saveWeeklyProjects();renderWeeklyEditors()}
+      projectFilter=project.id;input.value="";el("newProjectUsesDirection").checked=false;saveProjects();render();
+    }
     function renderScheduleEditors(){
       const list=visibleTasks();
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目"><option value="zj" ${task.project==="zj"?"selected":""}>杖剑传说</option><option value="s3g" ${task.project==="s3g"?"selected":""}>S3G</option></select><input class="direction-input" data-task-field="direction" type="number" min="1" value="${task.direction||1}" aria-label="方向" ${task.project!=="s3g"?"disabled":""}><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><input class="direction-input" data-task-field="direction" type="number" min="1" value="${task.direction||1}" aria-label="方向" ${!projectUsesDirection(task.project)?"disabled":""}><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
@@ -1243,8 +1313,8 @@
     }
 
     function updateSummary(){
-      const list=visibleTasks(),projects=new Set(list.map(t=>t.project)),final=list.reduce((m,t)=>t.end>m?t.end:m,"");
-      el("metricProjects").textContent=`${projects.size} 个`;
+      const list=visibleTasks(),projectCount=projectFilter==="all"?projects.length:(projectById(projectFilter)?1:0),final=list.reduce((m,t)=>t.end>m?t.end:m,"");
+      el("metricProjects").textContent=`${projectCount} 个`;
       el("metricTasks").textContent=`${list.length} 项`;
       el("metricMilestones").textContent=`${list.filter(t=>t.submit).length} 个`;
       el("metricDelayed").textContent=`${list.filter(t=>delayDays(t)>0).length} 个`;
@@ -1253,7 +1323,7 @@
     function showDetail(date){
       const items=visibleTasks().filter(t=>activeOn(t,date));
       el("detailDate").textContent=`${date.getFullYear()} 年 ${date.getMonth()+1} 月 ${date.getDate()} 日`;
-      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t);return`<div class="detail-item"><span class="project-tag ${t.project}">${projectLabel(t)}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div><div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
+      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t);return`<div class="detail-item"><span class="project-tag" style="color:${projectColor(t.project)};background:${projectTint(t.project)}">${escapeHtml(projectLabel(t))}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div><div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
       document.querySelectorAll(".copy-detail-task").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();const task=tasks.find(item=>item.id===button.dataset.taskId);if(task)duplicateTask(task)}));
     }
     function renderCalendar(){
@@ -1262,7 +1332,7 @@
       for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
       for(let day=1;day<=last.getDate();day++){
         const date=new Date(year,currentMonth,day),key=iso(date),items=visibleTasks().filter(t=>activeOn(t,date));
-        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="true" class="event ${t.project} ${t.submit?"milestone":t.type} ${delay?"delayed":""}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${projectLabel(t)} · ${escapeHtml(t.note)} · ${escapeHtml(t.name)}</button>`}).join("")}</div>`);
+        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="true" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(projectLabel(t))} · ${escapeHtml(t.note)} · ${escapeHtml(t.name)}</button>`}).join("")}</div>`);
       }
       el("calendar").innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
       document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
@@ -1281,7 +1351,7 @@
     function renderGantt(){
       const bounds=projectBounds(),dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
       const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
-      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">【${projectLabel(t)}】${t.name}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.project} ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" title="${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${delayText(t)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:t.note}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
+      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">【${escapeHtml(projectLabel(t))}】${escapeHtml(t.name)}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
       el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
     }
     function taskDuration(task){return dateRange(task.start,task.end).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
@@ -1293,11 +1363,11 @@
       el("durationLongest").textContent=list.length?`${list[0].duration} 天`:'—';
       el("durationChart").innerHTML=list.length?list.map(task=>{
         const kind=taskKind(task),percent=Math.max(2,task.duration/max*100),delay=delayDays(task);
-        return `<div class="duration-row"><div class="duration-name"><strong>【${projectLabel(task)}】${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${task.project} ${kind} ${delay?"delayed":""}" style="width:${percent}%"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
+        return `<div class="duration-row"><div class="duration-name"><strong>【${escapeHtml(projectLabel(task))}】${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${kind} ${delay?"delayed":""}" style="width:${percent}%;${!delay&&kind==="production"?`background:${projectColor(task.project)}`:""}"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
       }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
     }
     function render(){
-      updateSummary();renderCalendar();renderGantt();renderDuration();
+      renderProjectControls();updateSummary();renderCalendar();renderGantt();renderDuration();
       el("calendarPanel").hidden=currentView!=="calendar";
       el("ganttPanel").hidden=currentView!=="gantt";
       el("durationPanel").hidden=currentView!=="duration";
@@ -1322,9 +1392,11 @@
     el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
     el("nextMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth+1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
     el("projectStart").addEventListener("click",()=>{const start=parse(projectBounds().start);currentYear=start.getFullYear();currentMonth=start.getMonth();renderCalendar();showDetail(start)});
+    el("addProjectDefinition").addEventListener("click",addProjectDefinition);
+    el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
     el("addScheduleTask").addEventListener("click",()=>{
-      const bounds=projectBounds(),id=`schedule-${Date.now()}`;
-      tasks.push({id,project:projectFilter==="s3g"?"s3g":"zj",direction:1,name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false});
+      const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
+      tasks.push({id,project,direction:1,name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false});
       saveScheduleTasks();renderScheduleEditors();render();
       document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
     });
