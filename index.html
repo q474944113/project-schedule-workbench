@@ -161,11 +161,9 @@
     .schedule-editor-help { color: var(--muted); font-size: 12px; }
     .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
-    .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) 120px 100px auto auto; gap: 8px; align-items: center; }
-    .project-direction-option { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); white-space: nowrap; }
-    .project-direction-option input { width: auto; }
+    .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) 120px 100px auto; gap: 8px; align-items: center; }
     .project-manager-list { display: grid; gap: 8px; margin-top: 10px; }
-    .project-manager-item { display: grid; grid-template-columns: 28px minmax(120px, 1fr) minmax(130px, .8fr) 110px 90px auto auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .project-manager-item { display: grid; grid-template-columns: 28px minmax(120px, 1fr) minmax(130px, .8fr) 110px 90px auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
     .project-manager-item input[type="color"] { width: 25px; height: 25px; padding: 1px; border-radius: 50%; cursor: pointer; }
     .project-manager-count { color: var(--muted); font-size: 11px; }
     .project-manager-item button { padding: 4px 7px; font-size: 11px; }
@@ -190,9 +188,8 @@
     .legend-projects { display: contents; }
     .schedule-editor-list { display: grid; gap: 8px; }
     .schedule-editor-list { overflow-x: auto; }
-    .schedule-row { display: grid; grid-template-columns: 120px 72px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; min-width: 1430px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
+    .schedule-row { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
     .schedule-row input, .schedule-row select { min-width: 0; padding: 7px 8px; }
-    .schedule-row .direction-input:disabled { opacity: .45; background: #f0f1f3; }
     .weekdays-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
     .weekdays-toggle input { width: auto; }
     .schedule-empty { padding: 30px; color: var(--muted); text-align: center; }
@@ -256,7 +253,7 @@
       .report-grid { grid-template-columns: 1fr; }
       .report-archive { grid-template-columns: 1fr; }
       .output-card { position: static; }
-      .schedule-row { grid-template-columns: 120px 70px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
+      .schedule-row { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
       .project-create, .project-manager-item, .material-create, .material-manager-item { grid-template-columns: 1fr; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
       .overview-grid { grid-template-columns: 1fr; }
@@ -360,7 +357,7 @@
               <div id="alertList" class="alert-list"></div>
             </div>
             <div class="overview-box">
-              <div class="overview-section-head"><h3>负责人工作量</h3><span class="archive-help">按当前筛选统计</span></div>
+              <div class="overview-section-head"><h3>负责人工作量</h3><span class="archive-help">按子素材数统计，不计节点数</span></div>
               <div id="workloadList" class="workload-list"></div>
             </div>
           </section>
@@ -398,7 +395,7 @@
               <input id="newProjectOwner" type="text" maxlength="30" placeholder="负责人（可留空）">
               <select id="newProjectStatus" aria-label="新项目状态"><option value="planning">筹备中</option><option value="active" selected>进行中</option><option value="paused">已暂停</option><option value="completed">已完成</option></select>
               <select id="newProjectPriority" aria-label="新项目优先级"><option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option></select>
-              <label class="project-direction-option"><input id="newProjectUsesDirection" type="checkbox"> 使用方向编号</label>
+
               <button type="button" class="primary" id="addProjectDefinition">＋ 新增项目</button>
             </div>
             <div id="projectManagerList" class="project-manager-list"></div>
@@ -867,8 +864,8 @@
     const PROJECTS_STORAGE_KEY="project-workbench-projects-v1";
     const MATERIALS_STORAGE_KEY="project-workbench-materials-v1";
     const DEFAULT_PROJECTS=[
-      {id:"zj",name:"杖剑传说",color:"#f58228",usesDirection:false,owner:"",status:"active",priority:"medium",archived:false},
-      {id:"s3g",name:"S3G",color:"#7a61c9",usesDirection:true,owner:"",status:"active",priority:"medium",archived:false}
+      {id:"zj",name:"杖剑传说",color:"#f58228",owner:"",status:"active",priority:"medium",archived:false},
+      {id:"s3g",name:"S3G",color:"#7a61c9",owner:"",status:"active",priority:"medium",archived:false}
     ];
     const PROJECT_COLORS=["#2f9e70","#d64545","#087da0","#b7791f","#c2418c","#4f6fad","#7c5c3e","#607d8b"];
     const SUPABASE_URL="https://ldwwlqqxycempshfbphl.supabase.co";
@@ -880,8 +877,8 @@
     let cloudClient=null,cloudChannel=null,cloudReady=false,cloudApplying=false,cloudSaveTimer=0,lastCloudVersion=0,lastIssuedVersion=0;
     let cloudSnapshots=[],cloudHistoryLoading=false;
     function normalizeTask(task,index,prefix="saved"){
-      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"";
-      return{...task,actualEnd,id:task.id||`${prefix}-${index+1}`,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
+      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),materialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),{direction,...base}=task;
+      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
     }
     function cloneDefaultTasks(){return defaultTasks.map((task,index)=>normalizeTask(task,index,"schedule"))}
     function loadScheduleTasks(){
@@ -894,8 +891,8 @@
     function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
     function normalizeProjects(items,taskList=[]){
       const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
-      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),usesDirection:Boolean(project.usesDirection||id==="s3g"),owner:String(project.owner||"").trim(),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived)})});
-      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],usesDirection:Boolean(task.direction),owner:"",status:"active",priority:"medium",archived:false})}});
+      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:String(project.owner||"").trim(),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived)})});
+      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",status:"active",priority:"medium",archived:false})}});
       return result.length?result:cloneDefaultProjects();
     }
     function loadProjects(taskList){
@@ -930,7 +927,21 @@
         return normalizeMaterials(raw===null?null:JSON.parse(raw),projectList,taskList,raw===null);
       }catch(_){return normalizeMaterials(null,projectList,taskList,true)}
     }
-    let materials=loadMaterials(projects,tasks);
+    function ensureTaskLinkedMaterials(materialList,projectList,taskList){
+      const known=new Map(materialList.map(item=>[item.id,item]));
+      taskList.forEach(task=>{
+        if(!task.materialId)return;
+        const existing=known.get(task.materialId);
+        if(existing?.project===task.project)return;
+        const match=task.project==="s3g"?task.materialId.match(/^material-s3g-direction-(\d+)$/):null;
+        if(!match){task.materialId="";return}
+        const project=projectList.find(item=>item.id===task.project),material={id:task.materialId,project:task.project,name:`方向${match[1]}`,owner:project?.owner||"",status:"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
+        materialList.push(material);known.set(material.id,material);
+      });
+      return materialList;
+    }
+    let materials=ensureTaskLinkedMaterials(loadMaterials(projects,tasks),projects,tasks);
+    try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials))}catch(_){}
     const typeNames={milestone:"提交节点",production:"制作任务",revision:"修改任务"},taskStatusNames={not_started:"未开始",in_progress:"进行中",waiting:"待确认",completed:"已完成"},weekdays=["日","一","二","三","四","五","六"];
     const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
     const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
@@ -1109,7 +1120,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:6,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:7,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1126,7 +1137,8 @@
       cloudApplying=true;
       tasks=payload.tasks.map((task,index)=>normalizeTask(task,index,"cloud"));
       projects=normalizeProjects(payload.projects,payload.tasks);
-      materials=normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials));
+      materials=ensureTaskLinkedMaterials(normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials)),projects,tasks);
+      sanitizeMaterialProgress();
       weeklyProjects=payload.weeklyProjects.map(item=>({...item}));
       reportHistory=payload.reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))}));
       lastCloudVersion=Math.max(lastCloudVersion,Number(version)||0);
@@ -1178,7 +1190,7 @@
       const {data,error}=await cloudClient.from("workbench_state").select("payload,version,updated_at").eq("id",CLOUD_STATE_ID).maybeSingle();
       if(error)throw error;
       if(data?.payload){
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds));
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<7||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined);
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1230,10 +1242,10 @@
     const projectById=id=>projects.find(project=>project.id===id);
     const projectName=id=>projectById(id)?.name||id||"未命名项目";
     const projectColor=id=>validProjectColor(projectById(id)?.color);
-    const projectUsesDirection=id=>Boolean(projectById(id)?.usesDirection);
     const projectStatusNames={planning:"筹备中",active:"进行中",paused:"已暂停",completed:"已完成"};
     const projectPriorityNames={high:"高",medium:"中",low:"低"};
-    const projectLabel=t=>projectUsesDirection(t.project)?`${projectName(t.project)}·方向${t.direction||1}`:projectName(t.project);
+    const materialById=id=>materials.find(item=>item.id===id);
+    const projectLabel=t=>{const material=materialById(t.materialId);return material?.project===t.project?`${projectName(t.project)}·${material.name}`:projectName(t.project)};
     const projectTint=id=>{const hex=projectColor(id).slice(1),r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return`rgba(${r},${g},${b},.13)`};
     const taskKind=t=>t.submit?"milestone":t.type;
     const delayDays=t=>{if(!t.actualEnd||t.actualEnd<=t.end)return 0;let count=0,date=parse(t.end),last=parse(t.actualEnd);date.setDate(date.getDate()+1);while(date<=last){if(!isRestDay(date))count++;date.setDate(date.getDate()+1)}return count};
@@ -1246,6 +1258,7 @@
     }
     function saveScheduleTasks(){
       materials=normalizeMaterials(materials,projects,tasks,false);
+      sanitizeMaterialProgress();
       try { localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials)) } catch (_) {}
       el("scheduleSaveStatus").textContent="已保存";
       clearTimeout(saveScheduleTasks.timer);
@@ -1273,7 +1286,8 @@
         if(value==="milestone"&&(!task.note||task.note==="制作"||task.note==="修改"))task.note="提交";
         if(value!=="milestone"&&(task.note==="提交"||task.note==="确认"))task.note=value==="revision"?"修改":"制作";
       } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
-      else if(field==="direction") task.direction=Math.max(1,Number(value)||1);
+      else if(field==="project"){task.project=value;task.materialId=""}
+      else if(field==="materialId")task.materialId=materials.some(item=>item.id===value&&item.project===task.project)?value:"";
       else task[field]=value;
       if(field==="actualEnd"){
         if(value)task.status="completed";
@@ -1293,22 +1307,27 @@
       scheduleCloudSave();
     }
     const materialsForProject=projectId=>materials.filter(item=>item.project===projectId);
+    const materialsForTask=task=>{const list=materialsForProject(task.project);return task.materialId?list.filter(item=>item.id===task.materialId):list};
+    const taskAppliesToMaterial=(task,material)=>task.project===material.project&&(!task.materialId||task.materialId===material.id);
     const isMaterialTaskComplete=(material,task)=>!material.incompleteTaskIds.includes(task.id);
     function materialTaskProgress(task){
-      const list=materialsForProject(task.project),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
+      const list=materialsForTask(task),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
       return{completed,total:list.length,label:list.length?`${completed}/${list.length}条正常`:""};
     }
     function materialOverallProgress(material){
-      const projectTasks=tasks.filter(task=>task.project===material.project),completed=projectTasks.filter(task=>isMaterialTaskComplete(material,task)).length;
+      const projectTasks=tasks.filter(task=>taskAppliesToMaterial(task,material)),completed=projectTasks.filter(task=>isMaterialTaskComplete(material,task)).length;
       return{completed,total:projectTasks.length,percent:projectTasks.length?Math.round(completed/projectTasks.length*100):0};
     }
     function toggleMaterialTask(materialId,taskId,checked){
       const material=materials.find(item=>item.id===materialId),task=tasks.find(item=>item.id===taskId);
-      if(!material||!task||material.project!==task.project)return;
+      if(!material||!task||!taskAppliesToMaterial(task,material))return;
       const incomplete=new Set(material.incompleteTaskIds);
       checked?incomplete.delete(taskId):incomplete.add(taskId);
       material.incompleteTaskIds=[...incomplete];material.updatedAt=new Date().toISOString();
       saveMaterials();
+    }
+    function sanitizeMaterialProgress(){
+      materials.forEach(material=>{const valid=new Set(tasks.filter(task=>taskAppliesToMaterial(task,material)).map(task=>task.id));material.completedTaskIds=material.completedTaskIds.filter(id=>valid.has(id));material.incompleteTaskIds=material.incompleteTaskIds.filter(id=>valid.has(id))});
     }
     function renderMaterialManager(){
       const select=el("newMaterialProject"),selected=select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
@@ -1318,10 +1337,10 @@
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,value=control.value.trim();
-        if(field==="project"){material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[]}else material[field]=value;
+        if(field==="project"){tasks.forEach(task=>{if(task.materialId===material.id)task.materialId=""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];saveScheduleTasks()}else material[field]=value;
         material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY));
       }));
-      document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？`))return;materials=materials.filter(item=>item.id!==material.id);saveMaterials();render();showDetail(parse(TODAY))}));
+      document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？关联节点将改为全部子素材。`))return;tasks.forEach(task=>{if(task.materialId===material.id)task.materialId=""});materials=materials.filter(item=>item.id!==material.id);saveScheduleTasks();saveMaterials();render();showDetail(parse(TODAY))}));
     }
     function addMaterial(){
       const name=el("newMaterialName").value.trim(),project=el("newMaterialProject").value;
@@ -1331,6 +1350,7 @@
       el("newMaterialName").value="";el("newMaterialOwner").value="";el("newMaterialStatus").value="not_started";saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
+    function taskMaterialOptions(task){const list=materialsForProject(task.project);return`<option value="">${list.length?"全部子素材":"项目通用节点"}</option>${list.map(material=>`<option value="${escapeHtml(material.id)}" ${task.materialId===material.id?"selected":""}>${escapeHtml(material.name)}</option>`).join("")}`}
     function renderProjectControls(){
       const filter=el("projectFilter");
       if(!projects.some(project=>project.id===projectFilter))projectFilter="all";
@@ -1339,12 +1359,12 @@
       el("projectStatusFilter").value=projectStatusFilter;
       el("projectPriorityFilter").value=projectPriorityFilter;
       el("projectLegend").innerHTML=projects.filter(project=>showArchived||!project.archived).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
-      el("projectManagerList").innerHTML=projects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length;return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态">${Object.entries(projectStatusNames).map(([value,label])=>`<option value="${value}" ${project.status===value?"selected":""}>${label}</option>`).join("")}</select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 个节点</span><label class="project-direction-option"><input type="checkbox" class="project-direction-toggle" ${project.usesDirection?"checked":""}>方向编号</label><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span></div>`}).join("");
+      el("projectManagerList").innerHTML=projects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length;return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态">${Object.entries(projectStatusNames).map(([value,label])=>`<option value="${value}" ${project.status===value?"selected":""}>${label}</option>`).join("")}</select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span></div>`}).join("");
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=input.value.trim();saveProjects();render()}));
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value;saveProjects();render()}));
       document.querySelectorAll(".project-priority-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.priority=input.value;saveProjects();render()}));
-      document.querySelectorAll(".project-direction-toggle").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.usesDirection=input.checked;saveProjects();render()}));
+
       document.querySelectorAll(".archive-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.archived=!project.archived;if(project.archived&&projectFilter===project.id)projectFilter="all";saveProjects();render()}));
       document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects.forEach(item=>{if(item.name===previous)item.name=next});saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
       document.querySelectorAll(".delete-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const count=tasks.filter(task=>task.project===project.id).length;if(count)return alert(`“${project.name}”还有 ${count} 个排期节点，请先移动或删除这些节点。`);if(projects.length===1)return alert("至少需要保留一个项目。");if(!confirm(`确认删除空项目“${project.name}”吗？`))return;projects=projects.filter(item=>item.id!==project.id);materials=materials.filter(item=>item.project!==project.id);if(projectFilter===project.id)projectFilter="all";saveMaterials();saveProjects();render()}));
@@ -1353,18 +1373,18 @@
       const input=el("newProjectName"),name=input.value.trim();
       if(!name){input.focus();return}
       if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
-      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],usesDirection:el("newProjectUsesDirection").checked,owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value,priority:el("newProjectPriority").value,archived:false};
+      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value,priority:el("newProjectPriority").value,archived:false};
       projects.push(project);
       if(!weeklyProjects.some(item=>item.name===name)){weeklyProjects.push({name,progress:"",next:"",risk:""});saveWeeklyProjects();renderWeeklyEditors()}
-      projectFilter=project.id;input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="active";el("newProjectPriority").value="medium";el("newProjectUsesDirection").checked=false;saveProjects();render();
+      projectFilter=project.id;input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="active";el("newProjectPriority").value="medium";saveProjects();render();
     }
     function renderScheduleEditors(){
       const list=visibleTasks();
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><input class="direction-input" data-task-field="direction" type="number" min="1" value="${task.direction||1}" aria-label="方向" ${!projectUsesDirection(task.project)?"disabled":""}><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
-        if(["project","kind","status","start"].includes(control.dataset.taskField))renderScheduleEditors();
+        if(["project","materialId","kind","status","start"].includes(control.dataset.taskField))renderScheduleEditors();
       }));
       document.querySelectorAll('[data-task-field="name"],[data-task-field="note"]').forEach(control=>control.addEventListener("input",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(task)updateTask(task,control.dataset.taskField,control.value);
@@ -1552,7 +1572,7 @@
       el("overviewProjectCount").textContent=`${boardProjects.length} 个项目`;
       el("projectBoard").innerHTML=boardProjects.length?boardProjects.map(project=>{
         const projectTasks=tasks.filter(task=>task.project===project.id),projectMaterials=materialsForProject(project.id),delayed=projectTasks.filter(task=>delayDays(task)>0).length;
-        const total=projectMaterials.length?projectTasks.length*projectMaterials.length:projectTasks.length;
+        const total=projectMaterials.length?projectTasks.reduce((sum,task)=>sum+materialsForTask(task).length,0):projectTasks.length;
         const completed=projectMaterials.length?projectMaterials.reduce((sum,item)=>sum+materialOverallProgress(item).completed,0):projectTasks.filter(task=>task.status==="completed").length;
         const progress=total?Math.round(completed/total*100):0;
         const next=[...projectTasks].filter(task=>projectMaterials.length?task.end>=TODAY:task.status!=="completed").sort(compareTasks)[0];
@@ -1563,10 +1583,10 @@
       const alerts=buildAlerts();
       el("alertCount").textContent=`${alerts.length} 项`;
       el("alertList").innerHTML=alerts.length?alerts.map(item=>`<div class="alert-item"><span class="alert-level ${item.level}">${item.level==="high"?"重点":"提醒"}</span><div><strong>${escapeHtml(item.title)}</strong><div class="history-meta">${escapeHtml(item.detail)}</div></div></div>`).join(""):'<div class="empty-state">当前没有需要提醒的事项。</div>';
-      const workload=new Map();
-      visibleTasks().forEach(task=>{const owner=projectById(task.project)?.owner||"未分配";if(!workload.has(owner))workload.set(owner,{total:0,active:0,completed:0,delayed:0});const item=workload.get(owner);item.total++;if(task.status==="completed")item.completed++;else item.active++;if(delayDays(task)>0)item.delayed++});
-      const workloadItems=[...workload.entries()].sort((a,b)=>b[1].active-a[1].active||a[0].localeCompare(b[0],"zh-CN"));
-      el("workloadList").innerHTML=workloadItems.length?workloadItems.map(([owner,item])=>`<div class="workload-item"><strong>${escapeHtml(owner)}</strong><span>进行中 ${item.active}</span><span>已完成 ${item.completed}</span><span>${item.delayed?`延期 ${item.delayed}`:`共 ${item.total}`}</span></div>`).join(""):'<div class="empty-state">当前筛选下没有负责人数据。</div>';
+      const workload=new Map(),token=searchFilter.toLowerCase();
+      materials.filter(material=>{const project=projectById(material.project);if(!projectMatchesFilters(project,false))return false;return !token||projectSearchMatches(project)||`${material.name} ${material.owner} ${material.risk}`.toLowerCase().includes(token)}).forEach(material=>{const project=projectById(material.project),owner=material.owner||project?.owner||"未分配";if(!workload.has(owner))workload.set(owner,{total:0,active:0,completed:0,abnormal:0});const item=workload.get(owner);item.total++;if(material.status==="completed")item.completed++;else item.active++;if(material.incompleteTaskIds.length||!isNoRisk(material.risk))item.abnormal++});
+      const workloadItems=[...workload.entries()].sort((a,b)=>b[1].total-a[1].total||a[0].localeCompare(b[0],"zh-CN"));
+      el("workloadList").innerHTML=workloadItems.length?workloadItems.map(([owner,item])=>`<div class="workload-item"><strong>${escapeHtml(owner)}</strong><span>子素材 ${item.total}</span><span>进行中 ${item.active} · 已完成 ${item.completed}</span><span>${item.abnormal?`异常 ${item.abnormal}`:"无异常"}</span></div>`).join(""):'<div class="empty-state">当前筛选下没有子素材负责人数据。</div>';
       renderCloudHistory();
     }
     function renderCloudHistory(){
@@ -1608,7 +1628,7 @@
     function showDetail(date){
       const items=visibleTasks().filter(t=>activeOn(t,date));
       el("detailDate").textContent=`${date.getFullYear()} 年 ${date.getMonth()+1} 月 ${date.getDate()} 日`;
-      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t),project=projectById(t.project),taskMaterials=materialsForProject(t.project),materialRows=taskMaterials.length?`<div class="material-task-list"><strong>子素材状态 · ${materialTaskProgress(t).label}（取消勾选表示延期／未完成）</strong>${taskMaterials.map(material=>{const progress=materialOverallProgress(material);return`<label class="material-task-row"><span><input type="checkbox" class="material-task-toggle" data-material-id="${escapeHtml(material.id)}" data-task-id="${escapeHtml(t.id)}" ${isMaterialTaskComplete(material,t)?"checked":""}> ${escapeHtml(material.name)}</span><span>${materialStatusNames[material.status]}</span><span>${progress.completed}/${progress.total} 节点正常</span></label>`}).join("")}</div>`:"";return`<div class="detail-item"><span class="project-tag" style="color:${projectColor(t.project)};background:${projectTint(t.project)}">${escapeHtml(projectLabel(t))}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span><span class="task-status-badge">${taskStatusNames[t.status]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">负责人：${escapeHtml(project?.owner||"未填写")} · 项目状态：${projectStatusNames[project?.status]||"进行中"} · 优先级：${projectPriorityNames[project?.priority]||"中"}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div>${materialRows}<div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
+      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t),project=projectById(t.project),taskMaterials=materialsForTask(t),materialRows=taskMaterials.length?`<div class="material-task-list"><strong>子素材状态 · ${materialTaskProgress(t).label}（取消勾选表示延期／未完成）</strong>${taskMaterials.map(material=>{const progress=materialOverallProgress(material);return`<label class="material-task-row"><span><input type="checkbox" class="material-task-toggle" data-material-id="${escapeHtml(material.id)}" data-task-id="${escapeHtml(t.id)}" ${isMaterialTaskComplete(material,t)?"checked":""}> ${escapeHtml(material.name)}</span><span>${materialStatusNames[material.status]}</span><span>${progress.completed}/${progress.total} 节点正常</span></label>`}).join("")}</div>`:"";return`<div class="detail-item"><span class="project-tag" style="color:${projectColor(t.project)};background:${projectTint(t.project)}">${escapeHtml(projectLabel(t))}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span><span class="task-status-badge">${taskStatusNames[t.status]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">负责人：${escapeHtml(project?.owner||"未填写")} · 项目状态：${projectStatusNames[project?.status]||"进行中"} · 优先级：${projectPriorityNames[project?.priority]||"中"}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div>${materialRows}<div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
       document.querySelectorAll(".copy-detail-task").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();const task=tasks.find(item=>item.id===button.dataset.taskId);if(task)duplicateTask(task)}));
       document.querySelectorAll(".material-task-toggle").forEach(input=>input.addEventListener("change",event=>{event.stopPropagation();toggleMaterialTask(input.dataset.materialId,input.dataset.taskId,input.checked);render();showDetail(date)}));
     }
@@ -1696,7 +1716,7 @@
     el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
     el("addScheduleTask").addEventListener("click",()=>{
       const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
-      tasks.push({id,project,direction:1,name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",updatedAt:new Date().toISOString()});
+      tasks.push({id,project,materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",updatedAt:new Date().toISOString()});
       saveScheduleTasks();renderScheduleEditors();render();
       document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
     });
