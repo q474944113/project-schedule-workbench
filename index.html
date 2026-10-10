@@ -404,7 +404,7 @@
             <div id="projectManagerList" class="project-manager-list"></div>
           </section>
           <section class="material-manager" aria-label="子素材管理">
-            <div class="material-manager-head"><div><h3>子素材管理</h3><div class="schedule-editor-help">共享主排期，分别记录每条素材在各节点的完成进度。</div></div><span id="materialManagerCount" class="project-manager-count"></span></div>
+            <div class="material-manager-head"><div><h3>子素材管理</h3><div class="schedule-editor-help">共享主排期默认全部正常完成；仅在延期或未完成时取消勾选并标注风险。</div></div><span id="materialManagerCount" class="project-manager-count"></span></div>
             <div class="material-create">
               <select id="newMaterialProject" aria-label="所属项目"></select>
               <input id="newMaterialName" type="text" maxlength="50" placeholder="子素材名称">
@@ -908,7 +908,7 @@
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
-      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,owner:"",status:"not_started",completedTaskIds:[],risk:"",updatedAt:""}));
+      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,owner:"",status:"not_started",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
     }
     function normalizeMaterials(items,projectList,taskList,seedMissing=false){
       const validProjects=new Set(projectList.map(project=>project.id)),validTasksByProject=new Map(),seen=new Set(),result=[];
@@ -919,7 +919,7 @@
         if(!project||!validProjects.has(project)||!id||seen.has(id))return;
         seen.add(id);
         const validTaskIds=validTasksByProject.get(project)||new Set();
-        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,owner:String(item.owner||"").trim(),status:Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
+        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,owner:String(item.owner||"").trim(),status:Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
       });
       if(seedMissing)defaultMaterials(projectList).forEach(item=>{if(!seen.has(item.id))result.push(item)});
       return result;
@@ -1109,7 +1109,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:5,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:6,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1178,7 +1178,7 @@
       const {data,error}=await cloudClient.from("workbench_state").select("payload,version,updated_at").eq("id",CLOUD_STATE_ID).maybeSingle();
       if(error)throw error;
       if(data?.payload){
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials);
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds));
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1293,34 +1293,32 @@
       scheduleCloudSave();
     }
     const materialsForProject=projectId=>materials.filter(item=>item.project===projectId);
+    const isMaterialTaskComplete=(material,task)=>!material.incompleteTaskIds.includes(task.id);
     function materialTaskProgress(task){
-      const list=materialsForProject(task.project),completed=list.filter(item=>item.completedTaskIds.includes(task.id)).length;
-      return{completed,total:list.length,label:list.length?`${completed}/${list.length}条完成`:""};
+      const list=materialsForProject(task.project),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
+      return{completed,total:list.length,label:list.length?`${completed}/${list.length}条正常`:""};
     }
     function materialOverallProgress(material){
-      const projectTasks=tasks.filter(task=>task.project===material.project),completed=projectTasks.filter(task=>material.completedTaskIds.includes(task.id)).length;
+      const projectTasks=tasks.filter(task=>task.project===material.project),completed=projectTasks.filter(task=>isMaterialTaskComplete(material,task)).length;
       return{completed,total:projectTasks.length,percent:projectTasks.length?Math.round(completed/projectTasks.length*100):0};
     }
     function toggleMaterialTask(materialId,taskId,checked){
       const material=materials.find(item=>item.id===materialId),task=tasks.find(item=>item.id===taskId);
       if(!material||!task||material.project!==task.project)return;
-      const ids=new Set(material.completedTaskIds);
-      checked?ids.add(taskId):ids.delete(taskId);
-      material.completedTaskIds=[...ids];material.updatedAt=new Date().toISOString();
-      const progress=materialOverallProgress(material);
-      if(progress.total&&progress.completed===progress.total)material.status="completed";
-      else if(!checked&&material.status==="completed")material.status="production";
+      const incomplete=new Set(material.incompleteTaskIds);
+      checked?incomplete.delete(taskId):incomplete.add(taskId);
+      material.incompleteTaskIds=[...incomplete];material.updatedAt=new Date().toISOString();
       saveMaterials();
     }
     function renderMaterialManager(){
       const select=el("newMaterialProject"),selected=select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
       select.innerHTML=projectSelectOptions(selected);if(projectById(selected))select.value=selected;
       el("materialManagerCount").textContent=`${materials.length} 条子素材`;
-      el("materialManagerList").innerHTML=materials.length?materials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      el("materialManagerList").innerHTML=materials.length?materials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,value=control.value.trim();
-        if(field==="project"){material.project=value;material.completedTaskIds=[]}else material[field]=value;
+        if(field==="project"){material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[]}else material[field]=value;
         material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY));
       }));
       document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？`))return;materials=materials.filter(item=>item.id!==material.id);saveMaterials();render();showDetail(parse(TODAY))}));
@@ -1329,7 +1327,7 @@
       const name=el("newMaterialName").value.trim(),project=el("newMaterialProject").value;
       if(!name){el("newMaterialName").focus();return}
       if(!projectById(project))return alert("请先选择所属项目。");
-      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,owner:el("newMaterialOwner").value.trim(),status:el("newMaterialStatus").value,completedTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
+      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,owner:el("newMaterialOwner").value.trim(),status:el("newMaterialStatus").value,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
       el("newMaterialName").value="";el("newMaterialOwner").value="";el("newMaterialStatus").value="not_started";saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
@@ -1557,9 +1555,9 @@
         const total=projectMaterials.length?projectTasks.length*projectMaterials.length:projectTasks.length;
         const completed=projectMaterials.length?projectMaterials.reduce((sum,item)=>sum+materialOverallProgress(item).completed,0):projectTasks.filter(task=>task.status==="completed").length;
         const progress=total?Math.round(completed/total*100):0;
-        const next=[...projectTasks].filter(task=>projectMaterials.length?materialTaskProgress(task).completed<projectMaterials.length:task.status!=="completed").sort(compareTasks)[0];
-        const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.map(material=>{const itemProgress=materialOverallProgress(material);return`<div class="material-mini-card"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="task-status-badge">${materialStatusNames[material.status]}</span></div><div class="material-mini-meta">负责人：${escapeHtml(material.owner||"未填写")}</div><div class="progress-track"><div class="progress-fill" style="width:${itemProgress.percent}%"></div></div><div class="material-mini-meta">${itemProgress.completed}/${itemProgress.total} 节点 · ${itemProgress.percent}%${material.risk?` · 风险：${escapeHtml(material.risk)}`:""}</div></div>`}).join("")}</div>`:"";
-        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div><span class="status-badge">${projectStatusNames[project.status]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta">${projectMaterials.length?"素材节点完成":"已完成"} ${completed}/${total} · ${progress}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">查看排期</button></div></article>`;
+        const next=[...projectTasks].filter(task=>projectMaterials.length?task.end>=TODAY:task.status!=="completed").sort(compareTasks)[0];
+        const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.map(material=>{const itemProgress=materialOverallProgress(material);return`<div class="material-mini-card"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="task-status-badge">${materialStatusNames[material.status]}</span></div><div class="material-mini-meta">负责人：${escapeHtml(material.owner||"未填写")}</div><div class="progress-track"><div class="progress-fill" style="width:${itemProgress.percent}%"></div></div><div class="material-mini-meta">${itemProgress.completed}/${itemProgress.total} 节点正常 · ${itemProgress.percent}%${material.risk?` · 风险：${escapeHtml(material.risk)}`:""}</div></div>`}).join("")}</div>`:"";
+        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div><span class="status-badge">${projectStatusNames[project.status]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点正常率" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta">${projectMaterials.length?"素材节点正常":"已完成"} ${completed}/${total} · ${progress}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">查看排期</button></div></article>`;
       }).join(""):'<div class="empty-state">当前筛选下没有项目。</div>';
       document.querySelectorAll(".open-project").forEach(button=>button.addEventListener("click",()=>{projectFilter=button.dataset.projectId;currentView="calendar";document.querySelectorAll("[data-view]").forEach(tab=>tab.classList.toggle("active",tab.dataset.view==="calendar"));render();showDetail(parse(TODAY))}));
       const alerts=buildAlerts();
@@ -1610,7 +1608,7 @@
     function showDetail(date){
       const items=visibleTasks().filter(t=>activeOn(t,date));
       el("detailDate").textContent=`${date.getFullYear()} 年 ${date.getMonth()+1} 月 ${date.getDate()} 日`;
-      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t),project=projectById(t.project),taskMaterials=materialsForProject(t.project),materialRows=taskMaterials.length?`<div class="material-task-list"><strong>子素材进度 · ${materialTaskProgress(t).label}</strong>${taskMaterials.map(material=>{const progress=materialOverallProgress(material);return`<label class="material-task-row"><span><input type="checkbox" class="material-task-toggle" data-material-id="${escapeHtml(material.id)}" data-task-id="${escapeHtml(t.id)}" ${material.completedTaskIds.includes(t.id)?"checked":""}> ${escapeHtml(material.name)}</span><span>${materialStatusNames[material.status]}</span><span>${progress.completed}/${progress.total} 节点</span></label>`}).join("")}</div>`:"";return`<div class="detail-item"><span class="project-tag" style="color:${projectColor(t.project)};background:${projectTint(t.project)}">${escapeHtml(projectLabel(t))}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span><span class="task-status-badge">${taskStatusNames[t.status]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">负责人：${escapeHtml(project?.owner||"未填写")} · 项目状态：${projectStatusNames[project?.status]||"进行中"} · 优先级：${projectPriorityNames[project?.priority]||"中"}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div>${materialRows}<div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
+      el("detailBody").innerHTML=items.length?items.map(t=>{const delay=delayDays(t),project=projectById(t.project),taskMaterials=materialsForProject(t.project),materialRows=taskMaterials.length?`<div class="material-task-list"><strong>子素材状态 · ${materialTaskProgress(t).label}（取消勾选表示延期／未完成）</strong>${taskMaterials.map(material=>{const progress=materialOverallProgress(material);return`<label class="material-task-row"><span><input type="checkbox" class="material-task-toggle" data-material-id="${escapeHtml(material.id)}" data-task-id="${escapeHtml(t.id)}" ${isMaterialTaskComplete(material,t)?"checked":""}> ${escapeHtml(material.name)}</span><span>${materialStatusNames[material.status]}</span><span>${progress.completed}/${progress.total} 节点正常</span></label>`}).join("")}</div>`:"";return`<div class="detail-item"><span class="project-tag" style="color:${projectColor(t.project)};background:${projectTint(t.project)}">${escapeHtml(projectLabel(t))}</span><span class="type ${t.submit?"milestone":t.type}">${t.submit?"提交节点":typeNames[t.type]}</span><span class="task-status-badge">${taskStatusNames[t.status]}</span>${delay?`<span class="type delayed">延期 ${delay} 天</span>`:""}<div class="detail-name">${escapeHtml(t.name)}</div><div class="detail-range">负责人：${escapeHtml(project?.owner||"未填写")} · 项目状态：${projectStatusNames[project?.status]||"进行中"} · 优先级：${projectPriorityNames[project?.priority]||"中"}</div><div class="detail-range">预计：${rangeText(t)} · 实际完成：${t.actualEnd?formatDate(t.actualEnd):"未填写（正常）"} · ${escapeHtml(t.note)}</div>${materialRows}<div class="detail-actions"><button type="button" class="copy-detail-task" data-task-id="${escapeHtml(t.id)}">复制节点</button></div></div>`}).join(""):'<p class="detail-empty">当天暂无排期。</p>';
       document.querySelectorAll(".copy-detail-task").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();const task=tasks.find(item=>item.id===button.dataset.taskId);if(task)duplicateTask(task)}));
       document.querySelectorAll(".material-task-toggle").forEach(input=>input.addEventListener("change",event=>{event.stopPropagation();toggleMaterialTask(input.dataset.materialId,input.dataset.taskId,input.checked);render();showDetail(date)}));
     }
