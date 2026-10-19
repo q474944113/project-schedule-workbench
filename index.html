@@ -19,6 +19,10 @@
       --green-soft: #e2f4ec;
       --purple: #7a61c9;
       --purple-soft: #eee9fb;
+      --supervision: #b5478c;
+      --supervision-soft: #f9e8f3;
+      --acceptance: #0f8f83;
+      --acceptance-soft: #ddf5f1;
       --weekend: #eceeef;
       --shadow: 0 10px 30px rgba(24, 31, 40, .08);
     }
@@ -71,6 +75,8 @@
     .event.production { color: #087da0; background: var(--blue-soft); }
     .event.milestone { color: #c65c0d; background: var(--orange-soft); }
     .event.revision { color: #2f7f5d; background: var(--green-soft); }
+    .event.supervision { color: var(--supervision); background: var(--supervision-soft); }
+    .event.acceptance { color: var(--acceptance); background: var(--acceptance-soft); }
     .event.s3g.production { color: #6245ad; background: var(--purple-soft); }
     .event.s3g { box-shadow: inset -3px 0 0 var(--purple); }
     .event.zj { box-shadow: inset -3px 0 0 var(--orange); }
@@ -88,6 +94,8 @@
     .type.production { color: #087da0; background: var(--blue-soft); }
     .type.milestone { color: #c65c0d; background: var(--orange-soft); }
     .type.revision { color: #2f7f5d; background: var(--green-soft); }
+    .type.supervision { color: var(--supervision); background: var(--supervision-soft); }
+    .type.acceptance { color: var(--acceptance); background: var(--acceptance-soft); }
     .type.delayed { color: #b42318; background: #fde8e8; }
     .project-tag { display: inline-block; margin: 0 5px 5px 0; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
     .project-tag.s3g { color: #6245ad; background: var(--purple-soft); }
@@ -110,6 +118,8 @@
     .bar-cell.production { background: var(--blue); }
     .bar-cell.milestone { background: var(--orange); }
     .bar-cell.revision { background: var(--green); }
+    .bar-cell.supervision { background: var(--supervision); }
+    .bar-cell.acceptance { background: var(--acceptance); }
     .bar-cell.s3g.production { background: var(--purple); }
     .bar-cell.delayed { background: #d64545; }
     .bar-cell.start { border-radius: 6px 0 0 6px; }
@@ -245,6 +255,8 @@
     .duration-bar.s3g { background: var(--purple); }
     .duration-bar.milestone { background: var(--orange); }
     .duration-bar.revision { background: var(--green); }
+    .duration-bar.supervision { background: var(--supervision); }
+    .duration-bar.acceptance { background: var(--acceptance); }
     .duration-bar.delayed { background: #d64545; }
     .duration-value { font-weight: 700; text-align: right; white-space: nowrap; }
     [hidden] { display: none !important; }
@@ -330,6 +342,8 @@
           <option value="all">全部类型</option>
           <option value="milestone">提交节点</option>
           <option value="production">制作任务</option>
+          <option value="supervision">监修节点</option>
+          <option value="acceptance">验收节点</option>
           <option value="revision">修改任务</option>
         </select>
       </div>
@@ -356,6 +370,8 @@
         <div class="legend">
           <div id="projectLegend" class="legend-projects"></div>
           <span><i class="swatch" style="background:var(--orange)"></i>提交节点</span>
+          <span><i class="swatch" style="background:var(--supervision)"></i>监修节点</span>
+          <span><i class="swatch" style="background:var(--acceptance)"></i>验收节点</span>
           <span><i class="swatch" style="background:var(--green)"></i>修改任务</span>
           <span><i class="swatch" style="background:var(--weekend)"></i>休息日（含法定节假日）</span>
         </div>
@@ -869,7 +885,7 @@
     const DIRECTION5_TASKS=[
       {id:"s3g-direction5-script",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"脚本制作",start:"2026-10-21",end:"2026-10-22",type:"production",note:"脚本制作",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
       {id:"s3g-direction5-script-confirm",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"脚本确认",start:"2026-10-23",end:"2026-10-23",type:"production",note:"确认",weekdaysOnly:true,submit:true,status:"not_started",actualEnd:"",updatedAt:""},
-      {id:"s3g-direction5-supervision",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"监修",start:"2026-10-26",end:"2026-10-28",type:"production",note:"监修",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-supervision",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"监修",start:"2026-10-26",end:"2026-10-28",type:"supervision",note:"监修",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
       {id:"s3g-direction5-asset-reduction",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"资产减面",start:"2026-10-29",end:"2026-10-30",type:"production",note:"资产减面",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
       {id:"s3g-direction5-scene-build",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"场景搭建",start:"2026-11-02",end:"2026-11-03",type:"production",note:"场景搭建",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
       {id:"s3g-direction5-core-flow",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"基础功能开发／游戏玩法流程制作",start:"2026-11-04",end:"2026-11-05",type:"production",note:"制作",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
@@ -906,7 +922,8 @@
       const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),materialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),{direction,...base}=task;
       return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
     }
-    function cloneDefaultTasks(){return defaultTasks.map((task,index)=>normalizeTask(task,index,"schedule"))}
+    function classifySpecialTask(task){const label=`${task.name||""} ${task.note||""}`;if(task.type==="supervision"||/监修/.test(label))return{...task,type:"supervision",submit:false};if(task.type==="acceptance"||/验收/.test(label))return{...task,type:"acceptance",submit:false};return task}
+    function cloneDefaultTasks(){return defaultTasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"schedule")))}
     function mergeDirection5Tasks(taskList){
       const result=Array.isArray(taskList)?taskList.map(item=>({...item})):[],known=new Set(result.map(task=>task.id));
       DIRECTION5_TASKS.forEach((task,index)=>{if(!known.has(task.id))result.push(normalizeTask({...task},result.length+index,"direction5"))});
@@ -933,7 +950,7 @@
       try{return normalizeProjects(JSON.parse(localStorage.getItem(PROJECTS_STORAGE_KEY)),taskList)}
       catch(_){return normalizeProjects(null,taskList)}
     }
-    let tasks=migrateLocalDirection5(loadScheduleTasks());
+    let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
     let projects=loadProjects(tasks);
     const materialStatusNames={not_started:"未开始",production:"制作中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
     function defaultMaterials(projectList){
@@ -976,7 +993,7 @@
     }
     let materials=ensureTaskLinkedMaterials(loadMaterials(projects,tasks),projects,tasks);
     try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials))}catch(_){}
-    const typeNames={milestone:"提交节点",production:"制作任务",revision:"修改任务"},taskStatusNames={not_started:"未开始",in_progress:"进行中",waiting:"待确认",completed:"已完成"},weekdays=["日","一","二","三","四","五","六"];
+    const typeNames={milestone:"提交节点",production:"制作任务",supervision:"监修节点",acceptance:"验收节点",revision:"修改任务"},taskStatusNames={not_started:"未开始",in_progress:"进行中",waiting:"待确认",completed:"已完成"},weekdays=["日","一","二","三","四","五","六"];
     const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
     const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
     const REPORT_HISTORY_SEED_KEY="project-workbench-report-history-screenshot-seed-v1";
@@ -1154,7 +1171,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:9,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:10,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1169,7 +1186,7 @@
     function applyCloudPayload(payload,version){
       if(!payload||!Array.isArray(payload.tasks)||!Array.isArray(payload.weeklyProjects)||!Array.isArray(payload.reportHistory))return false;
       cloudApplying=true;
-      tasks=payload.tasks.map((task,index)=>normalizeTask(task,index,"cloud"));
+      tasks=payload.tasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"cloud")));
       projects=normalizeProjects(payload.projects,payload.tasks);
       materials=ensureTaskLinkedMaterials(normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials)),projects,tasks);
       sanitizeMaterialProgress();
@@ -1226,7 +1243,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<9||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<10||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1319,9 +1336,9 @@
     function updateTask(task,field,value){
       if(field==="kind"){
         task.submit=value==="milestone";
-        task.type=value==="revision"?"revision":"production";
-        if(value==="milestone"&&(!task.note||task.note==="制作"||task.note==="修改"))task.note="提交";
-        if(value!=="milestone"&&(task.note==="提交"||task.note==="确认"))task.note=value==="revision"?"修改":"制作";
+        task.type=["revision","supervision","acceptance"].includes(value)?value:"production";
+        const defaultNotes={milestone:"提交",production:"制作",supervision:"监修",acceptance:"验收",revision:"修改"};
+        if(!task.note||["制作","提交","确认","监修","验收","修改"].includes(task.note))task.note=defaultNotes[value]||"制作";
       } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
       else if(field==="project"){task.project=value;task.materialId=""}
       else if(field==="materialId")task.materialId=materials.some(item=>item.id===value&&item.project===task.project)?value:"";
@@ -1418,7 +1435,7 @@
     function renderScheduleEditors(){
       const list=visibleTasks();
       const compact=window.matchMedia("(max-width: 560px)").matches;
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
