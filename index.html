@@ -160,6 +160,7 @@
     .schedule-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .schedule-editor-help { color: var(--muted); font-size: 12px; }
     .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .manager-summary { display: none; cursor: pointer; font-weight: 700; }
     .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
     .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) 120px 100px auto; gap: 8px; align-items: center; }
     .project-manager-list { display: grid; gap: 8px; margin-top: 10px; }
@@ -186,9 +187,11 @@
     .material-task-row input { width: auto; }
     .material-summary { color: var(--muted); font-size: 11px; font-weight: 600; white-space: nowrap; }
     .legend-projects { display: contents; }
-    .schedule-editor-list { display: grid; gap: 8px; }
-    .schedule-editor-list { overflow-x: auto; }
-    .schedule-row { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
+    .schedule-editor-list { display: grid; gap: 8px; overflow-x: auto; }
+
+    .schedule-row { min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
+    .schedule-row-summary { display: none; cursor: pointer; }
+    .schedule-row-fields { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
     .schedule-row input, .schedule-row select { min-width: 0; padding: 7px 8px; }
     .weekdays-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
     .weekdays-toggle input { width: auto; }
@@ -253,7 +256,7 @@
       .report-grid { grid-template-columns: 1fr; }
       .report-archive { grid-template-columns: 1fr; }
       .output-card { position: static; }
-      .schedule-row { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
+      .schedule-row-fields { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
       .project-create, .project-manager-item, .material-create, .material-manager-item { grid-template-columns: 1fr; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
       .overview-grid { grid-template-columns: 1fr; }
@@ -273,6 +276,18 @@
       .duration-row { grid-template-columns: 1fr 52px; gap: 5px 8px; }
       .duration-track { grid-column: 1; }
       .duration-value { grid-column: 2; grid-row: 2; }
+      .schedule-editor { padding: 12px; }
+      .project-manager, .material-manager { padding: 0; }
+      .project-manager > .manager-summary, .material-manager > .manager-summary { display: block; padding: 12px; }
+      .project-manager[open] > .manager-summary, .material-manager[open] > .manager-summary { border-bottom: 1px solid var(--line); }
+      .project-manager > :not(.manager-summary), .material-manager > :not(.manager-summary) { margin-left: 10px; margin-right: 10px; }
+      .schedule-editor-list { overflow-x: visible; }
+      .schedule-row { min-width: 0; padding: 0; overflow: hidden; }
+      .schedule-row-summary { display: grid; gap: 3px; padding: 11px 12px; font-weight: 700; }
+      .schedule-row-summary span { color: var(--muted); font-size: 11px; font-weight: 500; }
+      .schedule-row[open] .schedule-row-summary { border-bottom: 1px solid var(--line); }
+      .schedule-row-fields { grid-template-columns: 1fr; padding: 10px; }
+      .schedule-row-fields .task-name, .schedule-row-fields .task-note { width: 100%; }
     }
   </style>
 </head>
@@ -362,7 +377,7 @@
             </div>
           </section>
           <section class="overview-section overview-box">
-            <div class="overview-section-head"><div><h3>云端版本历史</h3><div class="archive-help">恢复前会保留当前版本，可随时再次恢复</div></div><button type="button" id="refreshCloudHistory">刷新历史</button></div>
+            <div class="overview-section-head"><div><h3>云端版本历史</h3><div class="archive-help">按最新时间排序；恢复前会保留当前版本</div></div><button type="button" id="refreshCloudHistory">刷新历史</button></div>
             <div id="cloudHistoryStatus" class="save-status" aria-live="polite"></div>
             <div id="cloudHistoryList" class="cloud-history-list"></div>
           </section>
@@ -389,7 +404,7 @@
               <button type="button" id="resetSchedule">恢复原始排期</button>
             </div>
           </div>
-          <section class="project-manager" aria-label="项目管理">
+          <details id="projectManagerDetails" class="project-manager" open><summary class="manager-summary">项目管理</summary>
             <div class="project-create">
               <input id="newProjectName" type="text" maxlength="40" placeholder="输入新项目名称">
               <input id="newProjectOwner" type="text" maxlength="30" placeholder="负责人（可留空）">
@@ -399,8 +414,8 @@
               <button type="button" class="primary" id="addProjectDefinition">＋ 新增项目</button>
             </div>
             <div id="projectManagerList" class="project-manager-list"></div>
-          </section>
-          <section class="material-manager" aria-label="子素材管理">
+          </details>
+          <details id="materialManagerDetails" class="material-manager" open><summary class="manager-summary">子素材管理</summary>
             <div class="material-manager-head"><div><h3>子素材管理</h3><div class="schedule-editor-help">共享主排期默认全部正常完成；仅在延期或未完成时取消勾选并标注风险。</div></div><span id="materialManagerCount" class="project-manager-count"></span></div>
             <div class="material-create">
               <select id="newMaterialProject" aria-label="所属项目"></select>
@@ -410,7 +425,7 @@
               <button type="button" id="addMaterial" class="primary">＋ 添加子素材</button>
             </div>
             <div id="materialManagerList" class="material-manager-list"></div>
-          </section>
+          </details>
           <div id="scheduleEditorList" class="schedule-editor-list"></div>
         </div>
         <div id="weeklyPanel" class="weekly" hidden>
@@ -420,8 +435,8 @@
               <input id="weekLabel" type="text" value="">
             </div>
             <div class="weekly-actions">
-              <button type="button" id="addProject">＋ 添加周报项目</button>
-              <button type="button" id="resetReport">恢复本周示例</button>
+              <button type="button" id="addProject">同步当前项目</button>
+              <button type="button" id="resetReport">清空本周内容</button>
               <button type="button" class="primary" id="generateReport">生成汇报</button>
               <button type="button" id="saveReportSnapshot">保存本期预览</button>
             </div>
@@ -875,7 +890,7 @@
     const CLIENT_ID=sessionStorage.getItem("project-workbench-client-id")||(crypto.randomUUID?.()||`client-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     sessionStorage.setItem("project-workbench-client-id",CLIENT_ID);
     let cloudClient=null,cloudChannel=null,cloudReady=false,cloudApplying=false,cloudSaveTimer=0,lastCloudVersion=0,lastIssuedVersion=0;
-    let cloudSnapshots=[],cloudHistoryLoading=false;
+    let cloudSnapshots=[],cloudHistoryLoading=false,cloudHistoryExpanded=false;
     function normalizeTask(task,index,prefix="saved"){
       const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),materialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),{direction,...base}=task;
       return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
@@ -1108,7 +1123,7 @@
     ]
   }
 ];
-    let weeklyProjects=loadWeeklyProjects();
+    let weeklyProjects=normalizeWeeklyProjects(loadWeeklyProjects(),projects);
     let reportHistory=loadReportHistory();
     let currentYear=2026,currentMonth=8,currentView="calendar",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
@@ -1120,7 +1135,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:7,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:8,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1139,7 +1154,7 @@
       projects=normalizeProjects(payload.projects,payload.tasks);
       materials=ensureTaskLinkedMaterials(normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials)),projects,tasks);
       sanitizeMaterialProgress();
-      weeklyProjects=payload.weeklyProjects.map(item=>({...item}));
+      weeklyProjects=normalizeWeeklyProjects(payload.weeklyProjects,projects);
       reportHistory=payload.reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))}));
       lastCloudVersion=Math.max(lastCloudVersion,Number(version)||0);
       persistCloudPayload();
@@ -1190,7 +1205,7 @@
       const {data,error}=await cloudClient.from("workbench_state").select("payload,version,updated_at").eq("id",CLOUD_STATE_ID).maybeSingle();
       if(error)throw error;
       if(data?.payload){
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<7||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined);
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<8||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined);
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1246,6 +1261,7 @@
     const projectPriorityNames={high:"高",medium:"中",low:"低"};
     const materialById=id=>materials.find(item=>item.id===id);
     const projectLabel=t=>{const material=materialById(t.materialId);return material?.project===t.project?`${projectName(t.project)}·${material.name}`:projectName(t.project)};
+    const framedProjectLabel=t=>{const label=projectLabel(t);return label.startsWith("【")?label:`【${label}】`};
     const projectTint=id=>{const hex=projectColor(id).slice(1),r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return`rgba(${r},${g},${b},.13)`};
     const taskKind=t=>t.submit?"milestone":t.type;
     const delayDays=t=>{if(!t.actualEnd||t.actualEnd<=t.end)return 0;let count=0,date=parse(t.end),last=parse(t.actualEnd);date.setDate(date.getDate()+1);while(date<=last){if(!isRestDay(date))count++;date.setDate(date.getDate()+1)}return count};
@@ -1365,9 +1381,9 @@
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value;saveProjects();render()}));
       document.querySelectorAll(".project-priority-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.priority=input.value;saveProjects();render()}));
 
-      document.querySelectorAll(".archive-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.archived=!project.archived;if(project.archived&&projectFilter===project.id)projectFilter="all";saveProjects();render()}));
-      document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects.forEach(item=>{if(item.name===previous)item.name=next});saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
-      document.querySelectorAll(".delete-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const count=tasks.filter(task=>task.project===project.id).length;if(count)return alert(`“${project.name}”还有 ${count} 个排期节点，请先移动或删除这些节点。`);if(projects.length===1)return alert("至少需要保留一个项目。");if(!confirm(`确认删除空项目“${project.name}”吗？`))return;projects=projects.filter(item=>item.id!==project.id);materials=materials.filter(item=>item.project!==project.id);if(projectFilter===project.id)projectFilter="all";saveMaterials();saveProjects();render()}));
+      document.querySelectorAll(".archive-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.archived=!project.archived;if(project.archived&&projectFilter===project.id)projectFilter="all";weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
+      document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
+      document.querySelectorAll(".delete-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const count=tasks.filter(task=>task.project===project.id).length;if(count)return alert(`“${project.name}”还有 ${count} 个排期节点，请先移动或删除这些节点。`);if(projects.length===1)return alert("至少需要保留一个项目。");if(!confirm(`确认删除空项目“${project.name}”吗？`))return;projects=projects.filter(item=>item.id!==project.id);materials=materials.filter(item=>item.project!==project.id);if(projectFilter===project.id)projectFilter="all";weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveMaterials();saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
     }
     function addProjectDefinition(){
       const input=el("newProjectName"),name=input.value.trim();
@@ -1375,12 +1391,13 @@
       if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
       const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value,priority:el("newProjectPriority").value,archived:false};
       projects.push(project);
-      if(!weeklyProjects.some(item=>item.name===name)){weeklyProjects.push({name,progress:"",next:"",risk:""});saveWeeklyProjects();renderWeeklyEditors()}
+      weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors()
       projectFilter=project.id;input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="active";el("newProjectPriority").value="medium";saveProjects();render();
     }
     function renderScheduleEditors(){
       const list=visibleTasks();
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<article class="schedule-row" data-task-id="${escapeHtml(task.id)}"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></article>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      const compact=window.matchMedia("(max-width: 560px)").matches;
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
@@ -1404,7 +1421,25 @@
       }));
     }
 
-    function cloneWeeklyExample(){return weeklyExample.map(item=>({...item}))}
+    function normalizeWeeklyName(value){return String(value||"").toLowerCase().replace(/[【】\s_-]/g,"")}
+    function weeklyMatchScore(item,project){
+      if(item.projectId===project.id)return 1000;
+      const source=normalizeWeeklyName(item.name),target=normalizeWeeklyName(project.name),content=[item.progress,item.next,item.risk].filter(value=>String(value||"").trim()).length*100;
+      if(source===target)return 500+content;
+      if(target.includes("s3g")&&source.includes("s3g"))return 300+content;
+      if(target.includes("杖剑")&&source.includes("杖剑"))return 300+content;
+      if(target.includes("evony")&&(source.includes("evony")||source.includes("enovy")))return 300+content;
+      return 0;
+    }
+    function normalizeWeeklyProjects(items,projectList){
+      const source=Array.isArray(items)?items:[],active=projectList.filter(project=>!project.archived);
+      return active.map(project=>{
+        const best=source.map(item=>({item,score:weeklyMatchScore(item,project)})).sort((a,b)=>b.score-a.score)[0];
+        const matched=best?.score?best.item:{};
+        return{projectId:project.id,name:project.name,progress:String(matched.progress||""),next:String(matched.next||""),risk:String(matched.risk||"")};
+      });
+    }
+    function cloneWeeklyExample(){return normalizeWeeklyProjects(weeklyExample,projects)}
     function defaultWeekLabel(){
       const now=new Date(),day=now.getDay()||7,monday=new Date(now);
       monday.setDate(now.getDate()-day+1);
@@ -1448,7 +1483,7 @@
     function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]))}
     function syncWeeklyProjects(){
       weeklyProjects=[...document.querySelectorAll(".project-editor")].map(card=>({
-        name:card.querySelector('[data-field="name"]').value.trim(),
+        projectId:card.dataset.projectId,name:projectById(card.dataset.projectId)?.name||card.querySelector('[data-field="name"]').value.trim(),
         progress:card.querySelector('[data-field="progress"]').value.trim(),
         next:card.querySelector('[data-field="next"]').value.trim(),
         risk:card.querySelector('[data-field="risk"]').value.trim()
@@ -1456,9 +1491,9 @@
       saveWeeklyProjects();
     }
     function renderWeeklyEditors(){
-      el("projectEditors").innerHTML=weeklyProjects.map((item,index)=>`<article class="project-editor" data-index="${index}"><button type="button" class="remove-project ghost-danger" aria-label="删除${escapeHtml(item.name||"项目")}">删除</button><div class="field"><label>项目名称</label><input data-field="name" value="${escapeHtml(item.name)}"></div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`).join("");
+      el("projectEditors").innerHTML=weeklyProjects.map((item,index)=>`<article class="project-editor" data-index="${index}" data-project-id="${escapeHtml(item.projectId||"")}"><button type="button" class="clear-weekly-project ghost-danger" aria-label="清空${escapeHtml(item.name||"项目")}本周内容">清空</button><div class="field"><label>项目名称</label><input data-field="name" value="${escapeHtml(item.name)}" readonly></div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`).join("");
       document.querySelectorAll(".project-editor input,.project-editor textarea").forEach(node=>node.addEventListener("input",()=>{syncWeeklyProjects();generateWeeklyReport()}));
-      document.querySelectorAll(".remove-project").forEach(button=>button.addEventListener("click",()=>{syncWeeklyProjects();weeklyProjects.splice(Number(button.closest(".project-editor").dataset.index),1);saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()}));
+      document.querySelectorAll(".clear-weekly-project").forEach(button=>button.addEventListener("click",()=>{syncWeeklyProjects();const item=weeklyProjects[Number(button.closest(".project-editor").dataset.index)];if(!item)return;item.progress="";item.next="";item.risk="";saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()}));
     }
     function generateWeeklyReport(){
       if(document.querySelector(".project-editor")) syncWeeklyProjects();
@@ -1593,16 +1628,18 @@
       const list=el("cloudHistoryList");
       if(cloudHistoryLoading){list.innerHTML='<div class="empty-state">正在读取云端历史…</div>';return}
       if(!cloudSnapshots.length){list.innerHTML='<div class="empty-state">暂无可用的云端版本历史。</div>';return}
-      list.innerHTML=cloudSnapshots.map((item,index)=>{const snapshot=item.snapshot||{},savedAt=item.created_at||snapshot.savedAt,when=savedAt?new Date(savedAt).toLocaleString("zh-CN",{hour12:false}):"时间未知";return`<article class="cloud-history-item" data-history-index="${index}"><div><strong>${escapeHtml(when)}</strong><div class="history-meta">${snapshot.projects?.length||0} 个项目 · ${snapshot.tasks?.length||0} 个节点 · ${snapshot.reportHistory?.length||0} 条周报历史</div></div><button type="button" class="restore-cloud-history">恢复此版本</button></article>`}).join("");
+      const visible=cloudHistoryExpanded?cloudSnapshots:cloudSnapshots.slice(0,10);
+      list.innerHTML=visible.map((item,index)=>{const snapshot=item.snapshot||{},savedAt=item.created_at||snapshot.savedAt,when=savedAt?new Date(savedAt).toLocaleString("zh-CN",{hour12:false}):"时间未知";return`<article class="cloud-history-item" data-history-index="${index}"><div><strong>${escapeHtml(when)}</strong><div class="history-meta">${snapshot.projects?.length||0} 个项目 · ${snapshot.tasks?.length||0} 个节点 · ${snapshot.reportHistory?.length||0} 条周报历史</div></div><button type="button" class="restore-cloud-history">恢复此版本</button></article>`}).join("")+(cloudSnapshots.length>10?`<button type="button" id="toggleCloudHistory">${cloudHistoryExpanded?"收起历史":`显示更多（${cloudSnapshots.length-10}）`}</button>`:"");
+      el("toggleCloudHistory")?.addEventListener("click",()=>{cloudHistoryExpanded=!cloudHistoryExpanded;renderCloudHistory()});
       document.querySelectorAll(".restore-cloud-history").forEach(button=>button.addEventListener("click",()=>restoreCloudSnapshot(Number(button.closest(".cloud-history-item").dataset.historyIndex))));
     }
     async function loadCloudHistory(){
       if(!cloudClient||!cloudReady){el("cloudHistoryStatus").textContent="云端尚未连接。";return}
       cloudHistoryLoading=true;renderCloudHistory();el("cloudHistoryStatus").textContent="";
       try{
-        const {data,error}=await cloudClient.from("workbench_history").select("*").limit(50);
+        const {data,error}=await cloudClient.from("workbench_history").select("*").order("created_at",{ascending:false}).limit(50);
         if(error)throw error;
-        cloudSnapshots=(data||[]).sort((a,b)=>new Date(b.created_at||b.snapshot?.savedAt||0)-new Date(a.created_at||a.snapshot?.savedAt||0));
+        cloudSnapshots=data||[];cloudHistoryExpanded=false;
         el("cloudHistoryStatus").textContent=`已读取最近 ${cloudSnapshots.length} 个版本。`;
       }catch(error){console.error("Cloud history load failed",error);el("cloudHistoryStatus").textContent=`历史读取失败：${error?.message||error}`}
       cloudHistoryLoading=false;renderCloudHistory();
@@ -1657,7 +1694,7 @@
     function renderGantt(){
       const bounds=projectBounds(),dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
       const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
-      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">【${escapeHtml(projectLabel(t))}】${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
+      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
       el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
     }
     function taskDuration(task){return dateRange(task.start,task.end).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
@@ -1669,7 +1706,7 @@
       el("durationLongest").textContent=list.length?`${list[0].duration} 天`:'—';
       el("durationChart").innerHTML=list.length?list.map(task=>{
         const kind=taskKind(task),percent=Math.max(2,task.duration/max*100),delay=delayDays(task);
-        return `<div class="duration-row"><div class="duration-name"><strong>【${escapeHtml(projectLabel(task))}】${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${kind} ${delay?"delayed":""}" style="width:${percent}%;${!delay&&kind==="production"?`background:${projectColor(task.project)}`:""}"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
+        return `<div class="duration-row"><div class="duration-name"><strong>${escapeHtml(framedProjectLabel(task))}${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${kind} ${delay?"delayed":""}" style="width:${percent}%;${!delay&&kind==="production"?`background:${projectColor(task.project)}`:""}"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
       }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
     }
     function render(){
@@ -1699,7 +1736,7 @@
       if(currentView==="manage"){el("viewTitle").textContent="排期节点编辑";renderScheduleEditors()}
       if(currentView==="weekly"){el("viewTitle").textContent="每周项目进度汇报";generateWeeklyReport()}
     }
-    document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{currentView=b.dataset.view;document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("active",x===b));render()}));
+    document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{currentView=b.dataset.view;if(currentView==="manage"&&window.matchMedia("(max-width: 560px)").matches){if(projectFilter==="all")projectFilter=projects.find(project=>!project.archived)?.id||"all";el("projectManagerDetails").open=false;el("materialManagerDetails").open=false}if(currentView==="weekly"){weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);renderWeeklyEditors();generateWeeklyReport()}document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("active",x===b));render()}));
     el("projectFilter").addEventListener("change",e=>{projectFilter=e.target.value;render();showDetail(parse(TODAY))});
     el("projectStatusFilter").addEventListener("change",e=>{projectStatusFilter=e.target.value;render();showDetail(parse(TODAY))});
     el("projectPriorityFilter").addEventListener("change",e=>{projectPriorityFilter=e.target.value;render();showDetail(parse(TODAY))});
@@ -1722,8 +1759,8 @@
     });
     el("resetSchedule").addEventListener("click",()=>{if(!confirm("确认恢复原始排期？当前编辑内容将被覆盖。"))return;tasks=cloneDefaultTasks();saveScheduleTasks();const start=parse(projectBounds().start);currentYear=start.getFullYear();currentMonth=start.getMonth();renderScheduleEditors();render()});
     el("weekLabel").addEventListener("input",generateWeeklyReport);
-    el("addProject").addEventListener("click",()=>{syncWeeklyProjects();weeklyProjects.push({name:"",progress:"",next:"",risk:""});renderWeeklyEditors();generateWeeklyReport();document.querySelector('.project-editor:last-child input').focus()});
-    el("resetReport").addEventListener("click",()=>{weeklyProjects=cloneWeeklyExample();saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()});
+    el("addProject").addEventListener("click",()=>{syncWeeklyProjects();weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()});
+    el("resetReport").addEventListener("click",()=>{if(!confirm("确认清空当前项目的本周进展、下一步和风险内容吗？"))return;weeklyProjects=normalizeWeeklyProjects([],projects);saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()});
     el("generateReport").addEventListener("click",generateWeeklyReport);
     el("saveReportSnapshot").addEventListener("click",saveReportSnapshot);
     el("copyReport").addEventListener("click",copyWeeklyReport);
