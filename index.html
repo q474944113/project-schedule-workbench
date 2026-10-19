@@ -49,6 +49,12 @@
     .tabs, .filters { display: flex; flex-wrap: wrap; gap: 6px; }
     button, select { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
     button.active { background: var(--text); color: #fff; border-color: var(--text); }
+    .project-workspace-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; padding: 13px 15px; border: 1px solid var(--line); border-left: 5px solid var(--orange); border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); }
+    .project-workspace-main { display: flex; align-items: center; gap: 10px; min-width: 220px; flex: 1; }
+    .project-workspace-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+    .project-workspace-kicker { color: var(--muted); font-size: 11px; }
+    .project-workspace-title { font-size: 18px; font-weight: 700; }
+    .project-workspace-meta { color: var(--muted); font-size: 12px; }
     .summary { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
     .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
     .metric-label { color: var(--muted); font-size: 12px; }
@@ -202,6 +208,14 @@
     .schedule-row { min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
     .schedule-row-summary { display: none; cursor: pointer; }
     .schedule-row-fields { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
+    .app.project-focus .project-create, .app.project-focus #newMaterialProject, .app.project-focus [data-material-field="project"], .app.project-focus [data-task-field="project"], .app.project-focus #resetSchedule { display: none; }
+    .app.project-focus .material-create { grid-template-columns: minmax(170px,1fr) minmax(130px,.7fr) 110px auto; }
+    .app.project-focus .material-manager-item { grid-template-columns: minmax(160px,1fr) minmax(130px,.7fr) 110px minmax(150px,1fr) auto; }
+    .app.project-focus .schedule-row { min-width: 1390px; }
+    .app.project-focus .schedule-row-fields { grid-template-columns: 150px minmax(220px,1fr) 140px 140px 140px 120px 105px minmax(110px,.5fr) 78px 52px 52px; }
+    .app.project-focus .manager-summary { display: block; padding: 2px 0 8px; }
+    .app.project-focus details[open] > .manager-summary { border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+    .app:not(.project-focus) #materialManagerDetails, .app:not(.project-focus) #scheduleEditorList, .app:not(.project-focus) .schedule-editor-toolbar { display: none; }
     .schedule-row input, .schedule-row select { min-width: 0; padding: 7px 8px; }
     .weekdays-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
     .weekdays-toggle input { width: auto; }
@@ -215,6 +229,8 @@
     .overview-section + .overview-section { margin-top: 18px; }
     .overview-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
     .overview-section h3 { margin: 0; font-size: 16px; }
+    .overview-history-summary { cursor: pointer; list-style: none; }
+    .overview-history-summary::-webkit-details-marker { display: none; }
     .project-board { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 10px; }
     .project-overview-card { padding: 13px; border: 1px solid var(--line); border-top: 4px solid var(--orange); border-radius: 10px; background: #fff; }
     .project-overview-card.archived { opacity: .65; }
@@ -270,6 +286,7 @@
       .output-card { position: static; }
       .schedule-row-fields { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
       .project-create, .project-manager-item, .material-create, .material-manager-item { grid-template-columns: 1fr; }
+      .app.project-focus .material-create, .app.project-focus .material-manager-item { grid-template-columns: 1fr; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
       .overview-grid { grid-template-columns: 1fr; }
     }
@@ -295,16 +312,18 @@
       .project-manager > :not(.manager-summary), .material-manager > :not(.manager-summary) { margin-left: 10px; margin-right: 10px; }
       .schedule-editor-list { overflow-x: visible; }
       .schedule-row { min-width: 0; padding: 0; overflow: hidden; }
+      .app.project-focus .schedule-row { min-width: 0; }
       .schedule-row-summary { display: grid; gap: 3px; padding: 11px 12px; font-weight: 700; }
       .schedule-row-summary span { color: var(--muted); font-size: 11px; font-weight: 500; }
       .schedule-row[open] .schedule-row-summary { border-bottom: 1px solid var(--line); }
       .schedule-row-fields { grid-template-columns: 1fr; padding: 10px; }
+      .app.project-focus .schedule-row-fields { grid-template-columns: 1fr; }
       .schedule-row-fields .task-name, .schedule-row-fields .task-note { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <main class="app">
+  <main class="app" id="appRoot">
     <header class="hero">
       <div>
         <h1>项目排期总工作台</h1>
@@ -313,11 +332,11 @@
       </div>
       <div class="controls">
         <div class="tabs" aria-label="视图切换">
-          <button type="button" class="active" data-view="calendar">日历</button>
-          <button type="button" data-view="overview">项目总览</button>
+          <button type="button" data-view="calendar">日历</button>
+          <button type="button" class="active" data-view="overview">项目总览</button>
           <button type="button" data-view="gantt">甘特图</button>
           <button type="button" data-view="duration">耗时统计</button>
-          <button type="button" data-view="manage">排期编辑</button>
+          <button type="button" data-view="manage">项目管理</button>
           <button type="button" data-view="weekly">周报</button>
         </div>
         <input id="globalSearch" class="search-input" type="search" placeholder="搜索项目、节点、负责人" aria-label="搜索项目、节点或负责人">
@@ -349,6 +368,12 @@
       </div>
     </header>
 
+    <section id="projectWorkspaceBar" class="project-workspace-bar" hidden>
+      <button type="button" id="exitProjectWorkspace">← 返回项目总览</button>
+      <div class="project-workspace-main"><span id="projectWorkspaceDot" class="project-workspace-dot"></span><div><div class="project-workspace-kicker">当前项目工作区</div><div id="projectWorkspaceTitle" class="project-workspace-title"></div><div id="projectWorkspaceMeta" class="project-workspace-meta"></div></div></div>
+      <button type="button" id="openProjectEditor" class="primary">编辑该项目</button>
+    </section>
+
     <section class="summary" aria-label="项目概览">
       <div class="card"><div class="metric-label">当前项目</div><div class="metric-value" id="metricProjects">2 个</div></div>
       <div class="card"><div class="metric-label">排期事项</div><div class="metric-value" id="metricTasks">42 项</div></div>
@@ -360,7 +385,7 @@
     <section class="workspace" id="workspace">
       <div class="panel">
         <div class="panel-head">
-          <h2 id="viewTitle">2026 年 9 月</h2>
+          <h2 id="viewTitle">项目统筹总览</h2>
           <div class="month-nav" id="monthNav">
             <button type="button" id="prevMonth" aria-label="上个月">‹</button>
             <button type="button" id="projectStart">项目开始</button>
@@ -376,7 +401,7 @@
           <span><i class="swatch" style="background:var(--weekend)"></i>休息日（含法定节假日）</span>
         </div>
         <div id="dragHelp" class="drag-help">拖动节点到其他日期可移动；按住 Alt 拖动可复制。右侧详情也可直接复制节点。</div>
-        <div id="overviewPanel" class="overview-panel" hidden>
+        <div id="overviewPanel" class="overview-panel">
           <section class="overview-section">
             <div class="overview-section-head"><h3>项目总览</h3><span id="overviewProjectCount" class="archive-help"></span></div>
             <div id="projectBoard" class="project-board"></div>
@@ -391,13 +416,14 @@
               <div id="workloadList" class="workload-list"></div>
             </div>
           </section>
-          <section class="overview-section overview-box">
-            <div class="overview-section-head"><div><h3>云端版本历史</h3><div class="archive-help">按最新时间排序；恢复前会保留当前版本</div></div><button type="button" id="refreshCloudHistory">刷新历史</button></div>
+          <details class="overview-section overview-box">
+            <summary class="overview-section-head overview-history-summary"><div><h3>云端版本历史</h3><div class="archive-help">仅在需要恢复旧版本时展开</div></div><span class="archive-help">展开查看</span></summary>
+            <div class="overview-section-head"><span class="archive-help">按最新时间排序；恢复前会保留当前版本</span><button type="button" id="refreshCloudHistory">刷新历史</button></div>
             <div id="cloudHistoryStatus" class="save-status" aria-live="polite"></div>
             <div id="cloudHistoryList" class="cloud-history-list"></div>
-          </section>
+          </details>
         </div>
-        <div id="calendarPanel" class="calendar-wrap"><div id="calendar" class="calendar"></div></div>
+        <div id="calendarPanel" class="calendar-wrap" hidden><div id="calendar" class="calendar"></div></div>
         <div id="ganttPanel" class="gantt-wrap" hidden><div id="gantt" class="gantt"></div></div>
         <div id="durationPanel" class="duration-panel" hidden>
           <div class="duration-stats" aria-label="节点耗时概览">
@@ -419,7 +445,7 @@
               <button type="button" id="resetSchedule">恢复原始排期</button>
             </div>
           </div>
-          <details id="projectManagerDetails" class="project-manager" open><summary class="manager-summary">项目管理</summary>
+          <details id="projectManagerDetails" class="project-manager" open><summary class="manager-summary">项目设置</summary>
             <div class="project-create">
               <input id="newProjectName" type="text" maxlength="40" placeholder="输入新项目名称">
               <input id="newProjectOwner" type="text" maxlength="30" placeholder="负责人（可留空）">
@@ -1161,7 +1187,7 @@
 ];
     let weeklyProjects=normalizeWeeklyProjects(loadWeeklyProjects(),projects);
     let reportHistory=loadReportHistory();
-    let currentYear=2026,currentMonth=8,currentView="calendar",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,draggedTaskId="",dragCopy=false,dragDayOffset=0;
+    let currentYear=2026,currentMonth=8,currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
     function setCloudStatus(state,detail=""){
       const node=el("cloudStatus");
@@ -1293,6 +1319,23 @@
     const formatDate=s=>{const d=parse(s);return`${d.getMonth()+1} 月 ${d.getDate()} 日`};
     const rangeText=t=>t.start===t.end?formatDate(t.start):`${formatDate(t.start)}—${formatDate(t.end)}`;
     const projectById=id=>projects.find(project=>project.id===id);
+    const setActiveViewTab=view=>document.querySelectorAll("[data-view]").forEach(tab=>tab.classList.toggle("active",tab.dataset.view===view));
+    function activateView(view){
+      if(focusedProjectId&&view==="overview")return exitProjectWorkspace();
+      if(focusedProjectId&&view==="weekly")view="calendar";
+      currentView=view;
+      if(currentView==="manage"&&window.matchMedia("(max-width: 560px)").matches){el("projectManagerDetails").open=false;el("materialManagerDetails").open=false}
+      if(currentView==="weekly"){weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);renderWeeklyEditors();generateWeeklyReport()}
+      setActiveViewTab(currentView);render();
+    }
+    function enterProjectWorkspace(projectId){
+      const project=projectById(projectId);if(!project)return;
+      focusedProjectId=project.id;projectFilter=project.id;projectStatusFilter="all";projectPriorityFilter="all";typeFilter="all";searchFilter="";
+      el("globalSearch").value="";el("typeFilter").value="all";el("projectManagerDetails").open=false;el("materialManagerDetails").open=false;
+      const first=tasks.filter(task=>task.project===project.id).sort(compareTasks)[0],start=parse(first?.start||TODAY);currentYear=start.getFullYear();currentMonth=start.getMonth();
+      activateView("calendar");showDetail(start);
+    }
+    function exitProjectWorkspace(){focusedProjectId="";projectFilter="all";typeFilter="all";searchFilter="";el("globalSearch").value="";el("typeFilter").value="all";activateView("overview")}
     const projectName=id=>projectById(id)?.name||id||"未命名项目";
     const projectColor=id=>validProjectColor(projectById(id)?.color);
     const projectStatusNames={planning:"筹备中",active:"进行中",paused:"已暂停",completed:"已完成"};
@@ -1307,8 +1350,9 @@
     const compareTasks=(a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end)||projectLabel(a).localeCompare(projectLabel(b),"zh-CN")||a.name.localeCompare(b.name,"zh-CN");
     const visibleTasks=()=>tasks.filter(visible).sort(compareTasks);
     function projectBounds(){
-      if(!tasks.length)return{start:TODAY,end:TODAY};
-      return{start:tasks.reduce((min,t)=>t.start<min?t.start:min,tasks[0].start),end:tasks.reduce((max,t)=>t.end>max?t.end:max,tasks[0].end)};
+      const list=tasks.filter(task=>projectMatchesFilters(projectById(task.project),false));
+      if(!list.length)return{start:TODAY,end:TODAY};
+      return{start:list.reduce((min,t)=>t.start<min?t.start:min,list[0].start),end:list.reduce((max,t)=>t.end>max?t.end:max,list[0].end)};
     }
     function saveScheduleTasks(){
       materials=normalizeMaterials(materials,projects,tasks,false);
@@ -1384,10 +1428,11 @@
       materials.forEach(material=>{const valid=new Set(tasks.filter(task=>taskAppliesToMaterial(task,material)).map(task=>task.id));material.completedTaskIds=material.completedTaskIds.filter(id=>valid.has(id));material.incompleteTaskIds=material.incompleteTaskIds.filter(id=>valid.has(id))});
     }
     function renderMaterialManager(){
-      const select=el("newMaterialProject"),selected=select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
-      select.innerHTML=projectSelectOptions(selected);if(projectById(selected))select.value=selected;
-      el("materialManagerCount").textContent=`${materials.length} 条子素材`;
-      el("materialManagerList").innerHTML=materials.length?materials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      const focused=projectById(focusedProjectId),managerMaterials=focused?materialsForProject(focused.id):materials;
+      const select=el("newMaterialProject"),selected=focused?.id||select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
+      select.innerHTML=focused?`<option value="${escapeHtml(focused.id)}">${escapeHtml(focused.name)}</option>`:projectSelectOptions(selected);if(projectById(selected))select.value=selected;
+      el("materialManagerCount").textContent=`${managerMaterials.length} 条子素材`;
+      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,value=control.value.trim();
@@ -1406,14 +1451,15 @@
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
     function taskMaterialOptions(task){const list=materialsForProject(task.project);return`<option value="">${list.length?"全部子素材":"项目通用节点"}</option>${list.map(material=>`<option value="${escapeHtml(material.id)}" ${task.materialId===material.id?"selected":""}>${escapeHtml(material.name)}</option>`).join("")}`}
     function renderProjectControls(){
+      const focused=projectById(focusedProjectId),managerProjects=focused?[focused]:projects;
       const filter=el("projectFilter");
       if(!projects.some(project=>project.id===projectFilter))projectFilter="all";
       const filterProjects=projects.filter(project=>showArchived||!project.archived||project.id===projectFilter);filter.innerHTML=`<option value="all">全部项目</option>${filterProjects.map(project=>`<option value="${escapeHtml(project.id)}">${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}`;
       filter.value=projectFilter;
       el("projectStatusFilter").value=projectStatusFilter;
       el("projectPriorityFilter").value=projectPriorityFilter;
-      el("projectLegend").innerHTML=projects.filter(project=>showArchived||!project.archived).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
-      el("projectManagerList").innerHTML=projects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length;return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态">${Object.entries(projectStatusNames).map(([value,label])=>`<option value="${value}" ${project.status===value?"selected":""}>${label}</option>`).join("")}</select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span></div>`}).join("");
+      el("projectLegend").innerHTML=managerProjects.filter(project=>showArchived||!project.archived||project.id===focusedProjectId).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
+      el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length;return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态">${Object.entries(projectStatusNames).map(([value,label])=>`<option value="${value}" ${project.status===value?"selected":""}>${label}</option>`).join("")}</select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span></div>`}).join("");
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=input.value.trim();saveProjects();render()}));
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value;saveProjects();render()}));
@@ -1430,7 +1476,7 @@
       const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value,priority:el("newProjectPriority").value,archived:false};
       projects.push(project);
       weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors()
-      projectFilter=project.id;input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="active";el("newProjectPriority").value="medium";saveProjects();render();
+      input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="active";el("newProjectPriority").value="medium";saveProjects();enterProjectWorkspace(project.id);
     }
     function renderScheduleEditors(){
       const list=visibleTasks();
@@ -1649,10 +1695,10 @@
         const completed=projectMaterials.length?projectMaterials.reduce((sum,item)=>sum+materialOverallProgress(item).completed,0):projectTasks.filter(task=>task.status==="completed").length;
         const progress=total?Math.round(completed/total*100):0;
         const next=[...projectTasks].filter(task=>projectMaterials.length?task.end>=TODAY:task.status!=="completed").sort(compareTasks)[0];
-        const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.map(material=>{const itemProgress=materialOverallProgress(material);return`<div class="material-mini-card"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="task-status-badge">${materialStatusNames[material.status]}</span></div><div class="material-mini-meta">负责人：${escapeHtml(material.owner||"未填写")}</div><div class="progress-track"><div class="progress-fill" style="width:${itemProgress.percent}%"></div></div><div class="material-mini-meta">${itemProgress.completed}/${itemProgress.total} 节点正常 · ${itemProgress.percent}%${material.risk?` · 风险：${escapeHtml(material.risk)}`:""}</div></div>`}).join("")}</div>`:"";
-        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div><span class="status-badge">${projectStatusNames[project.status]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点正常率" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta">${projectMaterials.length?"素材节点正常":"已完成"} ${completed}/${total} · ${progress}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">查看排期</button></div></article>`;
+        const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.slice(0,4).map(material=>{const itemProgress=materialOverallProgress(material);return`<div class="material-mini-card"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="task-status-badge">${materialStatusNames[material.status]}</span></div><div class="material-mini-meta">负责人：${escapeHtml(material.owner||"未填写")}</div><div class="progress-track"><div class="progress-fill" style="width:${itemProgress.percent}%"></div></div><div class="material-mini-meta">${itemProgress.completed}/${itemProgress.total} 节点正常 · ${itemProgress.percent}%${material.risk?` · 风险：${escapeHtml(material.risk)}`:""}</div></div>`}).join("")}</div>`:"";
+        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div><span class="status-badge">${projectStatusNames[project.status]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点正常率" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta">${projectMaterials.length?"素材节点正常":"已完成"} ${completed}/${total} · ${progress}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
       }).join(""):'<div class="empty-state">当前筛选下没有项目。</div>';
-      document.querySelectorAll(".open-project").forEach(button=>button.addEventListener("click",()=>{projectFilter=button.dataset.projectId;currentView="calendar";document.querySelectorAll("[data-view]").forEach(tab=>tab.classList.toggle("active",tab.dataset.view==="calendar"));render();showDetail(parse(TODAY))}));
+      document.querySelectorAll(".open-project").forEach(button=>button.addEventListener("click",()=>enterProjectWorkspace(button.dataset.projectId)));
       const alerts=buildAlerts();
       el("alertCount").textContent=`${alerts.length} 项`;
       el("alertList").innerHTML=alerts.length?alerts.map(item=>`<div class="alert-item"><span class="alert-level ${item.level}">${item.level==="high"?"重点":"提醒"}</span><div><strong>${escapeHtml(item.title)}</strong><div class="history-meta">${escapeHtml(item.detail)}</div></div></div>`).join(""):'<div class="empty-state">当前没有需要提醒的事项。</div>';
@@ -1748,6 +1794,22 @@
       }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
     }
     function render(){
+      let focused=projectById(focusedProjectId);
+      if(focusedProjectId&&!focused){focusedProjectId="";projectFilter="all";focused=null}
+      if(focused)projectFilter=focused.id;
+      const root=el("appRoot"),bar=el("projectWorkspaceBar"),manageTab=document.querySelector('[data-view="manage"]');
+      root.classList.toggle("project-focus",Boolean(focused));
+      bar.hidden=!focused;
+      manageTab.textContent=focused?"排期编辑":"项目管理";
+      document.querySelector('[data-view="overview"]').hidden=Boolean(focused);
+      document.querySelector('[data-view="weekly"]').hidden=Boolean(focused);
+      el("globalSearch").placeholder=focused?"搜索当前项目节点、素材":"搜索项目、节点、负责人";
+      if(focused){
+        bar.style.borderLeftColor=projectColor(focused.id);
+        el("projectWorkspaceDot").style.background=projectColor(focused.id);
+        el("projectWorkspaceTitle").textContent=focused.name;
+        el("projectWorkspaceMeta").textContent="负责人："+(focused.owner||"未填写")+" · "+tasks.filter(task=>task.project===focused.id).length+" 个节点 · "+materialsForProject(focused.id).length+" 条素材";
+      }
       renderProjectControls();renderMaterialManager();updateSummary();renderCalendar();renderGantt();renderDuration();if(currentView==="overview")renderOverview();
       el("overviewPanel").hidden=currentView!=="overview";
       el("calendarPanel").hidden=currentView!=="calendar";
@@ -1757,24 +1819,29 @@
       el("weeklyPanel").hidden=currentView!=="weekly";
       el("monthNav").hidden=currentView!=="calendar";
       el("dragHelp").hidden=currentView!=="calendar";
+      document.querySelector(".summary").hidden=currentView==="overview"||currentView==="weekly"||(currentView==="manage"&&!focused);
       document.querySelector(".legend").hidden=["weekly","manage","overview"].includes(currentView);
       el("workspace").classList.toggle("report-mode",currentView==="weekly");
       el("workspace").classList.toggle("manage-mode",currentView==="manage");
       el("workspace").classList.toggle("duration-mode",currentView==="duration");
       el("workspace").classList.toggle("overview-mode",currentView==="overview");
-      el("projectFilter").hidden=currentView==="weekly";
-      el("projectStatusFilter").hidden=currentView==="weekly";
-      el("projectPriorityFilter").hidden=currentView==="weekly";
+      el("projectFilter").hidden=currentView==="weekly"||Boolean(focused);
+      el("projectStatusFilter").hidden=currentView==="weekly"||Boolean(focused);
+      el("projectPriorityFilter").hidden=currentView==="weekly"||Boolean(focused);
       el("typeFilter").hidden=currentView==="weekly";
       el("globalSearch").hidden=currentView==="weekly";
-      el("showArchivedWrap").hidden=currentView==="weekly";
+      el("showArchivedWrap").hidden=currentView==="weekly"||Boolean(focused);
       if(currentView==="overview")el("viewTitle").textContent="项目统筹总览";
-      if(currentView==="gantt"){const bounds=projectBounds();el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`}
+      if(currentView==="gantt"){const bounds=projectBounds();el("viewTitle").textContent=formatDate(bounds.start)+"—"+formatDate(bounds.end)}
       if(currentView==="duration")el("viewTitle").textContent="节点计划耗时统计";
-      if(currentView==="manage"){el("viewTitle").textContent="排期节点编辑";renderScheduleEditors()}
+      if(currentView==="manage"){el("viewTitle").textContent=focused?"排期节点编辑":"项目管理";if(focused)renderScheduleEditors()}
       if(currentView==="weekly"){el("viewTitle").textContent="每周项目进度汇报";generateWeeklyReport()}
+      if(focused&&currentView!=="overview")el("viewTitle").textContent=focused.name+" · "+el("viewTitle").textContent;
+      setActiveViewTab(currentView);
     }
-    document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{currentView=b.dataset.view;if(currentView==="manage"&&window.matchMedia("(max-width: 560px)").matches){if(projectFilter==="all")projectFilter=projects.find(project=>!project.archived)?.id||"all";el("projectManagerDetails").open=false;el("materialManagerDetails").open=false}if(currentView==="weekly"){weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);renderWeeklyEditors();generateWeeklyReport()}document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("active",x===b));render()}));
+    document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>activateView(button.dataset.view)));
+    el("exitProjectWorkspace").addEventListener("click",exitProjectWorkspace);
+    el("openProjectEditor").addEventListener("click",()=>activateView("manage"));
     el("projectFilter").addEventListener("change",e=>{projectFilter=e.target.value;render();showDetail(parse(TODAY))});
     el("projectStatusFilter").addEventListener("change",e=>{projectStatusFilter=e.target.value;render();showDetail(parse(TODAY))});
     el("projectPriorityFilter").addEventListener("change",e=>{projectPriorityFilter=e.target.value;render();showDetail(parse(TODAY))});
