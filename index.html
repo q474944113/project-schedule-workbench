@@ -295,7 +295,6 @@
   <main class="app">
     <header class="hero">
       <div>
-        <div class="eyebrow">S3G × 杖剑传说</div>
         <h1>项目排期总工作台</h1>
         <div class="sub">多项目统一日历、甘特图与周报管理</div>
         <div id="cloudStatus" class="cloud-status connecting" role="status" aria-live="polite">云端连接中</div>
@@ -866,7 +865,19 @@
     ]);
     const CN_ADJUSTED_WORKDAYS_2026=new Set(["2026-01-04","2026-02-14","2026-02-28","2026-04-26","2026-05-09","2026-09-20","2026-10-10"]);
     const s3gTasks=rawS3g.map(([direction,start,end,name,type="production",note="制作"])=>({project:"s3g",direction,name,start,end,type,note}));
-    const defaultTasks=onlineBaselineTasks.map(task=>({...task}));
+    const DIRECTION5_MATERIAL_ID="material-s3g-direction-5",DIRECTION5_MIGRATION_KEY="project-workbench-s3g-direction5-v1";
+    const DIRECTION5_TASKS=[
+      {id:"s3g-direction5-script",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"脚本制作",start:"2026-10-21",end:"2026-10-22",type:"production",note:"脚本制作",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-script-confirm",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"脚本确认",start:"2026-10-23",end:"2026-10-23",type:"production",note:"确认",weekdaysOnly:true,submit:true,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-supervision",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"监修",start:"2026-10-26",end:"2026-10-28",type:"production",note:"监修",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-asset-reduction",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"资产减面",start:"2026-10-29",end:"2026-10-30",type:"production",note:"资产减面",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-scene-build",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"场景搭建",start:"2026-11-02",end:"2026-11-03",type:"production",note:"场景搭建",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-core-flow",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"基础功能开发／游戏玩法流程制作",start:"2026-11-04",end:"2026-11-05",type:"production",note:"制作",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-core-flow-art",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"基础功能开发／游戏玩法流程制作／平面制作",start:"2026-11-06",end:"2026-11-09",type:"production",note:"制作",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-polish",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"游戏玩法流程制作／美术效果优化／手感优化",start:"2026-11-10",end:"2026-11-12",type:"production",note:"优化",weekdaysOnly:true,submit:false,status:"not_started",actualEnd:"",updatedAt:""},
+      {id:"s3g-direction5-first-submit",project:"s3g",materialId:DIRECTION5_MATERIAL_ID,name:"初稿提交",start:"2026-11-13",end:"2026-11-13",type:"production",note:"提交",weekdaysOnly:true,submit:true,status:"not_started",actualEnd:"",updatedAt:""}
+    ];
+    const defaultTasks=[...onlineBaselineTasks,...DIRECTION5_TASKS].map(task=>({...task}));
     defaultTasks.forEach((task,index)=>{
       task.id=task.id||`schedule-${index+1}`;
       task.actualEnd=task.actualEnd||"";
@@ -896,6 +907,14 @@
       return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
     }
     function cloneDefaultTasks(){return defaultTasks.map((task,index)=>normalizeTask(task,index,"schedule"))}
+    function mergeDirection5Tasks(taskList){
+      const result=Array.isArray(taskList)?taskList.map(item=>({...item})):[],known=new Set(result.map(task=>task.id));
+      DIRECTION5_TASKS.forEach((task,index)=>{if(!known.has(task.id))result.push(normalizeTask({...task},result.length+index,"direction5"))});
+      return result;
+    }
+    function migrateLocalDirection5(taskList){
+      try{if(localStorage.getItem(DIRECTION5_MIGRATION_KEY)==="1")return taskList;const merged=mergeDirection5Tasks(taskList);localStorage.setItem(DIRECTION5_MIGRATION_KEY,"1");return merged}catch(_){return mergeDirection5Tasks(taskList)}
+    }
     function loadScheduleTasks(){
       try {
         const saved=JSON.parse(localStorage.getItem(SCHEDULE_STORAGE_KEY));
@@ -914,7 +933,7 @@
       try{return normalizeProjects(JSON.parse(localStorage.getItem(PROJECTS_STORAGE_KEY)),taskList)}
       catch(_){return normalizeProjects(null,taskList)}
     }
-    let tasks=loadScheduleTasks();
+    let tasks=migrateLocalDirection5(loadScheduleTasks());
     let projects=loadProjects(tasks);
     const materialStatusNames={not_started:"未开始",production:"制作中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
     function defaultMaterials(projectList){
@@ -950,7 +969,7 @@
         if(existing?.project===task.project)return;
         const match=task.project==="s3g"?task.materialId.match(/^material-s3g-direction-(\d+)$/):null;
         if(!match){task.materialId="";return}
-        const project=projectList.find(item=>item.id===task.project),material={id:task.materialId,project:task.project,name:`方向${match[1]}`,owner:project?.owner||"",status:"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
+        const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:task.materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,owner:project?.owner||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
         materialList.push(material);known.set(material.id,material);
       });
       return materialList;
@@ -1135,7 +1154,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:8,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:9,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1205,7 +1224,9 @@
       const {data,error}=await cloudClient.from("workbench_state").select("payload,version,updated_at").eq("id",CLOUD_STATE_ID).maybeSingle();
       if(error)throw error;
       if(data?.payload){
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<8||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined);
+        const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
+        if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<9||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
