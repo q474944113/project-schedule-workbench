@@ -185,12 +185,16 @@
     .project-manager-count { color: var(--muted); font-size: 11px; }
     .project-manager-item button { padding: 4px 7px; font-size: 11px; }
     .project-manager-item.archived { opacity: .65; }
+    .project-demand-editor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 7px 12px; padding-top: 8px; border-top: 1px dashed var(--line); }
+    .project-demand-label { color: #725d42; font-size: 12px; font-weight: 700; }
+    .project-demand-field { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .project-demand-field input { width: 70px; min-width: 70px; padding: 6px 8px; text-align: center; }
     .material-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f7faf9; }
     .material-manager-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
     .material-manager-head h3 { margin: 0; font-size: 15px; }
-    .material-create { display: grid; grid-template-columns: 150px minmax(170px,1fr) minmax(130px,.7fr) 110px auto; gap: 8px; align-items: center; }
+    .material-create { display: grid; grid-template-columns: 150px minmax(170px,1fr) 115px minmax(130px,.7fr) 110px auto; gap: 8px; align-items: center; }
     .material-manager-list { display: grid; gap: 8px; margin-top: 10px; }
-    .material-manager-item { display: grid; grid-template-columns: 140px minmax(160px,1fr) minmax(130px,.7fr) 110px minmax(150px,1fr) auto; gap: 7px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .material-manager-item { display: grid; grid-template-columns: 140px minmax(150px,1fr) 110px minmax(130px,.7fr) 110px minmax(150px,1fr) auto; gap: 7px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
     .material-manager-item input, .material-manager-item select { min-width: 0; }
     .material-mini-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
     .material-mini-card { width: 100%; padding: 11px 13px; border: 0; border-radius: 20px; background: rgb(247,243,223); color: #725d42; text-align: left; box-shadow: none; transition: transform .25s ease, box-shadow .25s ease; }
@@ -239,8 +243,8 @@
     .schedule-row-summary { display: none; cursor: pointer; }
     .schedule-row-fields { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
     .app.project-focus .project-create, .app.project-focus #newMaterialProject, .app.project-focus [data-material-field="project"], .app.project-focus [data-task-field="project"], .app.project-focus #resetSchedule { display: none; }
-    .app.project-focus .material-create { grid-template-columns: minmax(170px,1fr) minmax(130px,.7fr) 110px auto; }
-    .app.project-focus .material-manager-item { grid-template-columns: minmax(160px,1fr) minmax(130px,.7fr) 110px minmax(150px,1fr) auto; }
+    .app.project-focus .material-create { grid-template-columns: minmax(170px,1fr) 115px minmax(130px,.7fr) 110px auto; }
+    .app.project-focus .material-manager-item { grid-template-columns: minmax(150px,1fr) 110px minmax(130px,.7fr) 110px minmax(150px,1fr) auto; }
     .app.project-focus .schedule-row { min-width: 1390px; }
     .app.project-focus .schedule-row-fields { grid-template-columns: 150px minmax(220px,1fr) 140px 140px 140px 120px 105px minmax(110px,.5fr) 78px 52px 52px; }
     .app.project-focus .manager-summary { display: block; padding: 2px 0 8px; }
@@ -261,12 +265,25 @@
     .overview-section h3 { margin: 0; font-size: 16px; }
     .overview-history-summary { cursor: pointer; list-style: none; }
     .overview-history-summary::-webkit-details-marker { display: none; }
+    .overview-alerts > summary { margin-bottom: 0; }
+    .overview-alerts[open] > summary { margin-bottom: 10px; }
     .project-board { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 10px; }
     .project-overview-card { display: flex; flex-direction: column; height: 100%; padding: 13px; border: 1px solid var(--line); border-top: 4px solid var(--orange); border-radius: 10px; background: #fff; }
     .project-overview-card.archived { opacity: .65; }
-    .project-card-head { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
-    .project-card-title { font-weight: 700; font-size: 16px; }
+    .project-card-head { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: start; height: 76px; }
+    .project-card-head > div:first-child { min-width: 0; }
+    .project-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 16px; }
+    .project-card-head .project-card-meta { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .project-card-badges { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; white-space: nowrap; }
+    .project-card-badges .status-badge, .project-card-badges .priority-badge { margin-left: 0; }
     .project-card-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .project-progress-meta, .project-next-meta { min-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .project-demand-summary { margin-top: 9px; padding: 9px 10px; border: 1px solid rgba(159,146,125,.42); border-radius: 13px; background: #f8f3e6; }
+    .project-demand-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 5px 10px; color: #725d42; font-size: 12px; font-weight: 700; }
+    .project-demand-gap { color: #b05d32; }
+    .project-demand-gap.complete { color: #28745a; }
+    .project-demand-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .project-demand-chip { padding: 3px 7px; border-radius: 999px; background: #fffdf7; color: #75643f; font-size: 11px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(159,146,125,.34); }
     .status-badge, .priority-badge, .task-status-badge { display: inline-block; margin-left: 5px; padding: 2px 7px; border-radius: 999px; background: #eef1f4; color: #4d5661; font-size: 11px; font-weight: 700; }
     .priority-badge.high, .alert-level.high { color: #b42318; background: #fde8e8; }
     .priority-badge.medium, .alert-level.medium { color: #9a5a00; background: #fff0d5; }
@@ -732,10 +749,10 @@
             <div id="projectBoard" class="project-board"></div>
           </section>
           <section class="overview-section overview-grid">
-            <div class="overview-box">
-              <div class="overview-section-head"><h3>风险与到期提醒</h3><span id="alertCount" class="archive-help"></span></div>
+            <details class="overview-box overview-alerts">
+              <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">仅提醒延期、提交及今日到期节点</div></div><span id="alertCount" class="archive-help"></span></summary>
               <div id="alertList" class="alert-list"></div>
-            </div>
+            </details>
             <div class="overview-box">
               <div class="overview-section-head"><h3>负责人工作量</h3><span class="archive-help">按子素材数统计，不计节点数</span></div>
               <div id="workloadList" class="workload-list"></div>
@@ -787,6 +804,7 @@
             <div class="material-create">
               <select id="newMaterialProject" aria-label="所属项目"></select>
               <input id="newMaterialName" type="text" maxlength="50" placeholder="子素材名称">
+              <select id="newMaterialType" aria-label="素材类型"><option value="unclassified" selected>未分类</option><option value="twoD">2D</option><option value="threeD">3D</option><option value="twoDIteration">2D迭代</option><option value="threeDIteration">3D迭代</option></select>
               <input id="newMaterialOwner" type="text" maxlength="30" placeholder="负责人（可留空）">
               <select id="newMaterialStatus" aria-label="子素材状态"><option value="not_started">未开始</option><option value="production">制作中</option><option value="pending_submit">待提交</option><option value="pending_feedback">待反馈</option><option value="revision">修改中</option><option value="completed">已完成</option></select>
               <button type="button" id="addMaterial" class="primary">＋ 添加子素材</button>
@@ -1290,12 +1308,14 @@
         return Array.isArray(saved)&&saved.length?saved.map((task,index)=>normalizeTask(task,index,"saved")):cloneDefaultTasks();
       } catch (_) { return cloneDefaultTasks() }
     }
-    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project}))}
+    const emptyProjectDemand=()=>({twoD:0,threeD:0,twoDIteration:0,threeDIteration:0});
+    function normalizeProjectDemand(value){const source=value&&typeof value==="object"?value:{},count=key=>Math.max(0,Math.min(9999,Math.round(Number(source[key])||0)));return{twoD:count("twoD"),threeD:count("threeD"),twoDIteration:count("twoDIteration"),threeDIteration:count("threeDIteration")}}
+    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,demand:normalizeProjectDemand(project.demand)}))}
     function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
     function normalizeProjects(items,taskList=[]){
       const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
-      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:String(project.owner||"").trim(),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived)})});
-      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",status:"active",priority:"medium",archived:false})}});
+      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:String(project.owner||"").trim(),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived),demand:normalizeProjectDemand(project.demand)})});
+      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",status:"active",priority:"medium",archived:false,demand:emptyProjectDemand()})}});
       return result.length?result:cloneDefaultProjects();
     }
     function loadProjects(taskList){
@@ -1305,10 +1325,11 @@
     let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
     let projects=loadProjects(tasks);
     const materialStatusNames={not_started:"未开始",production:"制作中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
+    const materialAssetTypeNames={unclassified:"未分类",twoD:"2D",threeD:"3D",twoDIteration:"2D迭代",threeDIteration:"3D迭代"};
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
-      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,owner:"",status:"not_started",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
+      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,assetType:"unclassified",owner:"",status:"not_started",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
     }
     function normalizeMaterials(items,projectList,taskList,seedMissing=false){
       const validProjects=new Set(projectList.map(project=>project.id)),validTasksByProject=new Map(),seen=new Set(),result=[];
@@ -1319,7 +1340,7 @@
         if(!project||!validProjects.has(project)||!id||seen.has(id))return;
         seen.add(id);
         const validTaskIds=validTasksByProject.get(project)||new Set();
-        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,owner:String(item.owner||"").trim(),status:Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
+        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,assetType:Object.prototype.hasOwnProperty.call(materialAssetTypeNames,item.assetType)?item.assetType:"unclassified",owner:String(item.owner||"").trim(),status:Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
       });
       if(seedMissing)defaultMaterials(projectList).forEach(item=>{if(!seen.has(item.id))result.push(item)});
       return result;
@@ -1338,7 +1359,7 @@
         if(existing?.project===task.project)return;
         const match=task.project==="s3g"?task.materialId.match(/^material-s3g-direction-(\d+)$/):null;
         if(!match){task.materialId="";return}
-        const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:task.materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,owner:project?.owner||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
+        const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:task.materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,assetType:"unclassified",owner:project?.owner||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
         materialList.push(material);known.set(material.id,material);
       });
       return materialList;
@@ -1523,7 +1544,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:10,projects:projects.map(item=>({...item})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:12,projects:projects.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1797,7 +1818,7 @@
       const select=el("newMaterialProject"),selected=focused?.id||select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
       select.innerHTML=focused?`<option value="${escapeHtml(focused.id)}">${escapeHtml(focused.name)}</option>`:projectSelectOptions(selected);if(projectById(selected))select.value=selected;
       el("materialManagerCount").textContent=`${managerMaterials.length} 条子素材`;
-      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,value=control.value.trim();
@@ -1810,8 +1831,8 @@
       const name=el("newMaterialName").value.trim(),project=el("newMaterialProject").value;
       if(!name){el("newMaterialName").focus();return}
       if(!projectById(project))return alert("请先选择所属项目。");
-      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,owner:el("newMaterialOwner").value.trim(),status:el("newMaterialStatus").value,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
-      el("newMaterialName").value="";el("newMaterialOwner").value="";el("newMaterialStatus").value="not_started";saveMaterials();render();
+      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,owner:el("newMaterialOwner").value.trim(),status:el("newMaterialStatus").value,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
+      el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialOwner").value="";el("newMaterialStatus").value="not_started";saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
     function taskMaterialOptions(task){const list=materialsForProject(task.project);return`<option value="">${list.length?"全部子素材":"项目通用节点"}</option>${list.map(material=>`<option value="${escapeHtml(material.id)}" ${task.materialId===material.id?"selected":""}>${escapeHtml(material.name)}</option>`).join("")}`}
@@ -1824,11 +1845,12 @@
       el("projectStatusFilter").value=projectStatusFilter;
       el("projectPriorityFilter").value=projectPriorityFilter;
       el("projectLegend").innerHTML=managerProjects.filter(project=>showArchived||!project.archived||project.id===focusedProjectId).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
-      el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length,automaticStatus=scheduledProjectStatus(project);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span></div>`}).join("");
+      el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length,automaticStatus=scheduledProjectStatus(project),demand=normalizeProjectDemand(project.demand);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span><div class="project-demand-editor"><span class="project-demand-label">素材需求量</span><label class="project-demand-field">2D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoD" value="${demand.twoD}" aria-label="2D需求量"></label><label class="project-demand-field">3D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeD" value="${demand.threeD}" aria-label="3D需求量"></label><label class="project-demand-field">2D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoDIteration" value="${demand.twoDIteration}" aria-label="2D迭代需求量"></label><label class="project-demand-field">3D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeDIteration" value="${demand.threeDIteration}" aria-label="3D迭代需求量"></label></div></div>`}).join("");
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=input.value.trim();saveProjects();render()}));
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value==="paused"?"paused":scheduledProjectStatus(project);saveProjects();render()}));
       document.querySelectorAll(".project-priority-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.priority=input.value;saveProjects();render()}));
+      document.querySelectorAll("[data-demand-field]").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.demand=normalizeProjectDemand({...project.demand,[input.dataset.demandField]:input.value});saveProjects();render()}));
 
       document.querySelectorAll(".archive-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.archived=!project.archived;if(project.archived&&projectFilter===project.id)projectFilter="all";weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
       document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
@@ -1838,7 +1860,7 @@
       const input=el("newProjectName"),name=input.value.trim();
       if(!name){input.focus();return}
       if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
-      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false};
+      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:el("newProjectOwner").value.trim(),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false,demand:emptyProjectDemand()};
       projects.push(project);
       weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors()
       input.value="";el("newProjectOwner").value="";el("newProjectStatus").value="auto";el("newProjectPriority").value="medium";saveProjects();enterProjectWorkspace(project.id);
@@ -2034,22 +2056,13 @@
     }
     function buildAlerts(){
       const alerts=[],today=parse(iso(new Date())),visibleProjects=projects.filter(project=>projectMatchesFilters(project));
-      visibleProjects.forEach(project=>{
-        if(project.priority==="high"&&!project.owner)alerts.push({level:"high",title:`${project.name}：高优先级项目尚未设置负责人`,detail:"建议尽快明确负责人，避免关键事项无人跟进。"});
-        if(project.status==="paused"&&tasks.some(task=>task.project===project.id&&task.status!=="completed"))alerts.push({level:"medium",title:`${project.name}：项目已暂停但仍有未完成节点`,detail:"请确认这些节点是否需要调整日期或状态。"});
-      });
       visibleTasks().forEach(task=>{
         const project=projectById(task.project),delay=delayDays(task);
-        if(delay>0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${delay} 天`,detail:`计划 ${rangeText(task)}，实际完成 ${formatDate(task.actualEnd)}。`});
-        if(task.status!=="completed"){
-          const end=parse(task.end),days=Math.round((end-today)/86400000);
-          if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
-          else if(days>0&&days<=3)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} 将在 ${days} 天内到期`,detail:`截止 ${formatDate(task.end)}，当前状态：${taskStatusNames[task.status]}。`});
-          if(task.updatedAt){
-            const inactiveDays=Math.floor((Date.now()-new Date(task.updatedAt).getTime())/86400000);
-            if(inactiveDays>=7)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} 已 ${inactiveDays} 天未更新`,detail:`上次更新：${taskUpdatedLabel(task)}。`});
-          }
-        }
+        if(delay>0){alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${delay} 天`,detail:`计划 ${rangeText(task)}，实际完成 ${formatDate(task.actualEnd)}。`});return}
+        if(task.status==="completed")return;
+        const end=parse(task.end),days=Math.round((end-today)/86400000);
+        if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
+        else if(task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
       });
       return alerts;
     }
@@ -2063,9 +2076,10 @@
         const done=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.done,0):projectTasks.filter(taskCompletedByDate).length;
         const completed=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.completed,0):projectTasks.filter(task=>taskCompletedByDate(task)&&!delayDays(task)).length;
         const progress=total?Math.round(done/total*100):0,normalRate=done?Math.round(completed/done*100):0;
-        const next=[...projectTasks].filter(task=>task.end>=TODAY).sort(compareTasks)[0];
+        const next=[...projectTasks].filter(task=>task.end>=TODAY).sort(compareTasks)[0],demand=normalizeProjectDemand(project.demand),assetTypeCounts=projectMaterials.reduce((counts,material)=>{if(Object.prototype.hasOwnProperty.call(counts,material.assetType))counts[material.assetType]++;return counts},emptyProjectDemand()),unclassifiedCount=projectMaterials.filter(material=>material.assetType==="unclassified").length,demandItems=[["2D","twoD"],["3D","threeD"],["2D迭代","twoDIteration"],["3D迭代","threeDIteration"]].map(([label,key])=>({label,key,required:demand[key],current:assetTypeCounts[key],gap:Math.max(0,demand[key]-assetTypeCounts[key])})).filter(item=>item.required>0),demandTotal=demandItems.reduce((sum,item)=>sum+item.required,0),matchedTotal=demandItems.reduce((sum,item)=>sum+Math.min(item.current,item.required),0),demandGap=demandItems.reduce((sum,item)=>sum+item.gap,0);
+        const demandCard=demandTotal?`<div class="project-demand-summary"><div class="project-demand-head"><span>素材需求 ${demandTotal} · 已匹配 ${matchedTotal}${unclassifiedCount?` · 未分类 ${unclassifiedCount}`:""}</span><span class="project-demand-gap ${demandGap?"":"complete"}">${demandGap?`缺口 ${demandGap}`:"需求已覆盖"}</span></div><div class="project-demand-chips">${demandItems.map(item=>`<span class="project-demand-chip">${item.label} ${item.current}/${item.required}${item.gap?` · 缺 ${item.gap}`:" · 已覆盖"}</span>`).join("")}</div></div>`:"";
         const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.slice(0,4).map(material=>{const node=materialCurrentNode(material),task=node.task;return`<button type="button" class="material-mini-card open-material-node ${node.state}" data-project-id="${escapeHtml(project.id)}" data-material-id="${escapeHtml(material.id)}"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="material-node-state">${node.label}</span></div><div class="material-mini-node"><span class="material-stage-label"><span class="material-stage-label-text">${task?escapeHtml(task.name):"暂无排期"}</span></span></div><div class="material-mini-meta">${escapeHtml(node.detail)}${node.extra?` · 另有 ${node.extra} 个并行节点`:""} · ${escapeHtml(material.owner||"未填写负责人")}</div>${material.risk?`<div class="material-mini-meta">风险：${escapeHtml(material.risk)}</div>`:""}</button>`}).join("")}</div>${projectMaterials.length>4?`<div class="material-mini-more">另有 ${projectMaterials.length-4} 条素材，进入项目查看</div>`:""}`:"";
-        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div><span class="status-badge">${projectStatusNames[effectiveProjectStatus(project)]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta">${completed}/${total} 节点正常 · ${normalRate}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
+        return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div class="project-card-badges"><span class="status-badge">${projectStatusNames[effectiveProjectStatus(project)]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta project-progress-meta">${completed}/${total} 节点正常 · ${normalRate}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta project-next-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${demandCard}${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
       }).join(""):'<div class="empty-state">当前筛选下没有项目。</div>';
       document.querySelectorAll(".open-project").forEach(button=>button.addEventListener("click",()=>enterProjectWorkspace(button.dataset.projectId)));
       document.querySelectorAll(".open-material-node").forEach(card=>card.addEventListener("click",()=>{enterProjectWorkspace(card.dataset.projectId);scheduleMaterialFocusId=card.dataset.materialId;activateView("manage")}));
