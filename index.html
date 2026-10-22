@@ -750,7 +750,7 @@
           </section>
           <section class="overview-section overview-grid">
             <details class="overview-box overview-alerts">
-              <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">仅提醒延期、提交及今日到期节点</div></div><span id="alertCount" class="archive-help"></span></summary>
+              <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">仅提醒未完成延期、今日到期及未来提交节点</div></div><span id="alertCount" class="archive-help"></span></summary>
               <div id="alertList" class="alert-list"></div>
             </details>
             <div class="overview-box">
@@ -1290,7 +1290,7 @@
     let cloudSnapshots=[],cloudHistoryLoading=false,cloudHistoryExpanded=false;
     function normalizeTask(task,index,prefix="saved"){
       const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),materialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),{direction,...base}=task;
-      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:(actualEnd?"completed":"in_progress"),updatedAt:task.updatedAt||""};
+      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",updatedAt:task.updatedAt||""};
     }
     function classifySpecialTask(task){const label=`${task.name||""} ${task.note||""}`;if(task.type==="supervision"||/监修/.test(label))return{...task,type:"supervision",submit:false};if(task.type==="acceptance"||/验收/.test(label))return{...task,type:"acceptance",submit:false};return task}
     function cloneDefaultTasks(){return defaultTasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"schedule")))}
@@ -1673,6 +1673,9 @@
     }
     const visible=t=>{const project=projectById(t.project),token=searchFilter.toLowerCase(),taskMatch=!token||projectSearchMatches(project)||`${t.name} ${t.note||""}`.toLowerCase().includes(token);return projectMatchesFilters(project,false)&&taskMatch&&(typeFilter==="all"||(typeFilter==="milestone"?t.submit:t.type===typeFilter))};
     const activeOn=(t,d)=>{const key=iso(d);return key>=t.start&&key<=t.end&&!(t.weekdaysOnly&&isRestDay(d))};
+    const taskGanttStart=t=>t.actualEnd&&t.actualEnd<t.start?t.actualEnd:t.start;
+    const taskGanttEnd=t=>t.actualEnd||t.end;
+    const ganttActiveOn=(t,d)=>{const key=iso(d);return key>=taskGanttStart(t)&&key<=taskGanttEnd(t)&&!(t.weekdaysOnly&&isRestDay(d))};
     const formatDate=s=>{const d=parse(s);return`${d.getMonth()+1} 月 ${d.getDate()} 日`};
     const rangeText=t=>!t.end||t.start===t.end?formatDate(t.start):`${formatDate(t.start)}—${formatDate(t.end)}`;
     const projectById=id=>projects.find(project=>project.id===id);
@@ -1770,7 +1773,7 @@
       const list=materialsForTask(task),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
       return{completed,total:list.length,label:list.length?`${completed}/${list.length}条正常`:""};
     }
-    const taskCompletedByDate=task=>task.end<TODAY;
+    const taskCompletedByDate=task=>Boolean(task.actualEnd)||task.end<TODAY;
     function materialOverallProgress(material){
       const projectTasks=tasks.filter(task=>taskAppliesToMaterial(task,material)),finished=projectTasks.filter(taskCompletedByDate),normal=finished.filter(task=>isMaterialTaskComplete(material,task)&&!delayDays(task)).length;
       return{completed:normal,done:finished.length,total:projectTasks.length,percent:finished.length?Math.round(normal/finished.length*100):0,progressPercent:projectTasks.length?Math.round(finished.length/projectTasks.length*100):0,pending:projectTasks.length-finished.length};
@@ -1783,9 +1786,9 @@
         const task=[...incomplete].reverse().find(item=>item.start<=TODAY)||incomplete[0];
         return{task,state:"attention",label:task.end<TODAY?"未完成":"需关注",detail:rangeText(task),extra:Math.max(0,incomplete.length-1)};
       }
-      const active=list.filter(task=>task.start<=TODAY&&task.end>=TODAY).sort((a,b)=>a.end.localeCompare(b.end)||compareTasks(a,b));
+      const active=list.filter(task=>!task.actualEnd&&task.start<=TODAY&&task.end>=TODAY).sort((a,b)=>a.end.localeCompare(b.end)||compareTasks(a,b));
       if(active.length)return{task:active[0],state:"current",label:"当前节点",detail:rangeText(active[0]),extra:active.length-1};
-      const next=list.find(task=>task.start>TODAY);
+      const next=list.find(task=>!task.actualEnd&&task.start>TODAY);
       if(next)return{task:next,state:"next",label:"下一节点",detail:rangeText(next),extra:0};
       const last=list[list.length-1];
       const delayed=delayDays(last);
@@ -1874,7 +1877,7 @@
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
-        if(["project","materialId","kind","status","start"].includes(control.dataset.taskField))renderScheduleEditors();
+        if(["project","materialId","kind","status","start","actualEnd"].includes(control.dataset.taskField))renderScheduleEditors();
       }));
       document.querySelectorAll('[data-task-field="name"],[data-task-field="note"]').forEach(control=>control.addEventListener("input",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(task)updateTask(task,control.dataset.taskField,control.value);
@@ -2055,14 +2058,19 @@
       return Number.isNaN(date.getTime())?"未记录":date.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false});
     }
     function buildAlerts(){
-      const alerts=[],today=parse(iso(new Date())),visibleProjects=projects.filter(project=>projectMatchesFilters(project));
+      const alerts=[],today=parse(iso(new Date()));
       visibleTasks().forEach(task=>{
-        const project=projectById(task.project),delay=delayDays(task);
-        if(delay>0){alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${delay} 天`,detail:`计划 ${rangeText(task)}，实际完成 ${formatDate(task.actualEnd)}。`});return}
+        const project=projectById(task.project),end=parse(task.end),days=Math.round((end-today)/86400000);
+        if(task.actualEnd)return;
+        if(days<0){
+          const incompleteMaterials=materialsForTask(task).filter(material=>!isMaterialTaskComplete(material,task));
+          if(!incompleteMaterials.length)return;
+          let delay=0,date=parse(task.end);date.setDate(date.getDate()+1);while(date<=today){if(!isRestDay(date))delay++;date.setDate(date.getDate()+1)}
+          alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${Math.max(1,delay)} 天 · 未完成`,detail:`计划 ${rangeText(task)}，未完成素材：${incompleteMaterials.map(material=>material.name).join("、")}。`});return
+        }
         if(task.status==="completed")return;
-        const end=parse(task.end),days=Math.round((end-today)/86400000);
         if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
-        else if(task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
+        else if(days>0&&task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
       });
       return alerts;
     }
@@ -2076,7 +2084,7 @@
         const done=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.done,0):projectTasks.filter(taskCompletedByDate).length;
         const completed=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.completed,0):projectTasks.filter(task=>taskCompletedByDate(task)&&!delayDays(task)).length;
         const progress=total?Math.round(done/total*100):0,normalRate=done?Math.round(completed/done*100):0;
-        const next=[...projectTasks].filter(task=>task.end>=TODAY).sort(compareTasks)[0],demand=normalizeProjectDemand(project.demand),assetTypeCounts=projectMaterials.reduce((counts,material)=>{if(Object.prototype.hasOwnProperty.call(counts,material.assetType))counts[material.assetType]++;return counts},emptyProjectDemand()),unclassifiedCount=projectMaterials.filter(material=>material.assetType==="unclassified").length,demandItems=[["2D","twoD"],["3D","threeD"],["2D迭代","twoDIteration"],["3D迭代","threeDIteration"]].map(([label,key])=>({label,key,required:demand[key],current:assetTypeCounts[key],gap:Math.max(0,demand[key]-assetTypeCounts[key])})).filter(item=>item.required>0),demandTotal=demandItems.reduce((sum,item)=>sum+item.required,0),matchedTotal=demandItems.reduce((sum,item)=>sum+Math.min(item.current,item.required),0),demandGap=demandItems.reduce((sum,item)=>sum+item.gap,0);
+        const next=[...projectTasks].filter(task=>!task.actualEnd&&task.end>=TODAY).sort(compareTasks)[0],demand=normalizeProjectDemand(project.demand),assetTypeCounts=projectMaterials.reduce((counts,material)=>{if(Object.prototype.hasOwnProperty.call(counts,material.assetType))counts[material.assetType]++;return counts},emptyProjectDemand()),unclassifiedCount=projectMaterials.filter(material=>material.assetType==="unclassified").length,demandItems=[["2D","twoD"],["3D","threeD"],["2D迭代","twoDIteration"],["3D迭代","threeDIteration"]].map(([label,key])=>({label,key,required:demand[key],current:assetTypeCounts[key],gap:Math.max(0,demand[key]-assetTypeCounts[key])})).filter(item=>item.required>0),demandTotal=demandItems.reduce((sum,item)=>sum+item.required,0),matchedTotal=demandItems.reduce((sum,item)=>sum+Math.min(item.current,item.required),0),demandGap=demandItems.reduce((sum,item)=>sum+item.gap,0);
         const demandCard=demandTotal?`<div class="project-demand-summary"><div class="project-demand-head"><span>素材需求 ${demandTotal} · 已匹配 ${matchedTotal}${unclassifiedCount?` · 未分类 ${unclassifiedCount}`:""}</span><span class="project-demand-gap ${demandGap?"":"complete"}">${demandGap?`缺口 ${demandGap}`:"需求已覆盖"}</span></div><div class="project-demand-chips">${demandItems.map(item=>`<span class="project-demand-chip">${item.label} ${item.current}/${item.required}${item.gap?` · 缺 ${item.gap}`:" · 已覆盖"}</span>`).join("")}</div></div>`:"";
         const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.slice(0,4).map(material=>{const node=materialCurrentNode(material),task=node.task;return`<button type="button" class="material-mini-card open-material-node ${node.state}" data-project-id="${escapeHtml(project.id)}" data-material-id="${escapeHtml(material.id)}"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="material-node-state">${node.label}</span></div><div class="material-mini-node"><span class="material-stage-label"><span class="material-stage-label-text">${task?escapeHtml(task.name):"暂无排期"}</span></span></div><div class="material-mini-meta">${escapeHtml(node.detail)}${node.extra?` · 另有 ${node.extra} 个并行节点`:""} · ${escapeHtml(material.owner||"未填写负责人")}</div>${material.risk?`<div class="material-mini-meta">风险：${escapeHtml(material.risk)}</div>`:""}</button>`}).join("")}</div>${projectMaterials.length>4?`<div class="material-mini-more">另有 ${projectMaterials.length-4} 条素材，进入项目查看</div>`:""}`:"";
         return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div class="project-card-badges"><span class="status-badge">${projectStatusNames[effectiveProjectStatus(project)]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta project-progress-meta">${completed}/${total} 节点正常 · ${normalRate}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta project-next-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${demandCard}${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
@@ -2160,9 +2168,9 @@
     }
     function dateRange(start,end){const a=[],d=parse(start),last=parse(end);while(d<=last){a.push(new Date(d));d.setDate(d.getDate()+1)}return a}
     function renderGantt(){
-      const bounds=projectBounds(),dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
+      const list=visibleTasks(),fallback=projectBounds(),bounds=list.length?{start:list.reduce((min,task)=>taskGanttStart(task)<min?taskGanttStart(task):min,taskGanttStart(list[0])),end:list.reduce((max,task)=>taskGanttEnd(task)>max?taskGanttEnd(task):max,taskGanttEnd(list[0]))}:fallback,dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
       const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
-      const rows=visibleTasks().map(t=>{const active=dates.filter(d=>activeOn(t,d)).map(iso),delay=delayDays(t);return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · ${rangeText(t)} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
+      const rows=list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
       el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
     }
     function taskDuration(task){return dateRange(task.start,task.end).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
