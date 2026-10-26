@@ -78,8 +78,8 @@
     .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
     .legend span { display: inline-flex; align-items: center; gap: 6px; }
     .swatch { width: 12px; height: 12px; border-radius: 3px; }
-    .calendar-wrap { overflow-x: auto; }
-    .calendar { min-width: 760px; display: grid; grid-template-columns: minmax(54px, .55fr) repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+    .calendar-wrap { overflow-x: hidden; }
+    .calendar { width: 100%; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--line); }
     .weekday { background: #fafafa; color: var(--muted); padding: 8px; text-align: center; font-weight: 600; }
     .day { min-height: 116px; padding: 8px; background: #fff; cursor: pointer; }
     .day:hover { background: #fffaf6; }
@@ -2342,14 +2342,20 @@
       if(currentView==="calendar")setDetailDrawerOpen(true);
     }
     function renderCalendar(){
-      const year=currentYear,first=new Date(year,currentMonth,1),last=new Date(year,currentMonth+1,0),cells=[];
+      const year=currentYear,first=new Date(year,currentMonth,1),last=new Date(year,currentMonth+1,0),cells=[],monthDays=[],weekdayHasContent=Array(7).fill(false),calendarTasks=visibleTasks();
+      for(let day=1;day<=last.getDate();day++){
+        const date=new Date(year,currentMonth,day),key=iso(date),items=calendarTasks.filter(t=>activeOn(t,date));
+        monthDays.push({day,date,key,items});
+        if(items.length)weekdayHasContent[date.getDay()]=true;
+      }
+      const hasAnyContent=weekdayHasContent.some(Boolean),compactColumn="clamp(46px, 3.8vw, 64px)",calendar=el("calendar");
+      calendar.style.gridTemplateColumns=(hasAnyContent?weekdayHasContent.map(hasContent=>hasContent?"minmax(0, 1fr)":compactColumn):Array(7).fill("minmax(0, 1fr)")).join(" ");
       weekdays.forEach(x=>cells.push(`<div class="weekday">${x}</div>`));
       for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
-      for(let day=1;day<=last.getDate();day++){
-        const date=new Date(year,currentMonth,day),key=iso(date),items=visibleTasks().filter(t=>activeOn(t,date));
+      monthDays.forEach(({day,date,key,items})=>{
         cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="${t.actualEnd?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${t.actualEnd?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
-      }
-      el("calendar").innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
+      });
+      calendar.innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
       document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
         dayCell.addEventListener("click",()=>showDetail(parse(dayCell.dataset.date)));
         dayCell.addEventListener("dragover",event=>{event.preventDefault();event.dataTransfer.dropEffect=event.altKey||dragCopy?"copy":"move";dayCell.classList.add("drag-over")});
