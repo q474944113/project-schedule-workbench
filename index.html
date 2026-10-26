@@ -169,7 +169,7 @@
     .week-input { width: 220px; }
     .weekly-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
     .weekly-project-picker { position: relative; min-width: 260px; }
-    .weekly-project-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 9px 14px; border: 2px solid #c4b89e; border-radius: 16px; background: #f9f6e9; color: var(--text); box-shadow: 0 3px 0 #d4c9b4; cursor: pointer; list-style: none; font-weight: 700; }
+    .weekly-project-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-width: 0; min-height: 42px; padding: 9px 14px; border: 2px solid #c4b89e; border-radius: 16px; background: #f9f6e9; color: var(--text); box-shadow: 0 3px 0 #d4c9b4; cursor: pointer; list-style: none; font-weight: 700; white-space: normal; overflow-wrap: anywhere; }
     .weekly-project-picker > summary::-webkit-details-marker { display: none; }
     .weekly-project-picker > summary::after { content: "▾"; color: var(--muted); transition: transform .18s ease; }
     .weekly-project-picker[open] { z-index: 40; }
@@ -1999,22 +1999,31 @@
       return 0;
     }
     function normalizeWeeklyProjects(items,projectList){
-      const source=Array.isArray(items)?items:[],active=projectList.filter(project=>!project.archived),formalSource=source.filter(item=>item.custom!==true);
-      const normalized=active.map(project=>{
+      const source=Array.isArray(items)?items:[],catalog=Array.isArray(projectList)?projectList:[],formalSource=source.filter(item=>item.custom!==true);
+      const normalized=catalog.map(project=>{
         const best=formalSource.map(item=>({item,score:weeklyMatchScore(item,project)})).sort((a,b)=>b.score-a.score)[0];
         const matched=best?.score?best.item:{},hasMatch=Boolean(best?.score);
-        return{projectId:project.id,name:project.name,progress:String(matched.progress||""),next:String(matched.next||""),risk:String(matched.risk||""),selected:hasMatch?matched.selected!==false:false,custom:false};
+        return{projectId:project.id,name:project.name,progress:String(matched.progress||""),next:String(matched.next||""),risk:String(matched.risk||""),selected:hasMatch?matched.selected!==false:false,custom:false,sharedProjectIds:Array.isArray(matched.sharedProjectIds)?matched.sharedProjectIds.map(String):[],sharedParentId:String(matched.sharedParentId||"")};
       });
-      const usedNames=new Set(active.map(project=>project.name.trim().toLowerCase()));
+      const usedNames=new Set(catalog.map(project=>project.name.trim().toLowerCase()));
       source.filter(item=>item.custom===true).forEach((item,index)=>{
         const name=String(item.name||"").trim(),key=name.toLowerCase();
         if(!name||usedNames.has(key))return;
         usedNames.add(key);
-        normalized.push({projectId:String(item.projectId||`custom-weekly-${Date.now()}-${index}`),name,progress:String(item.progress||""),next:String(item.next||""),risk:String(item.risk||""),selected:item.selected!==false,custom:true});
+        normalized.push({projectId:String(item.projectId||`custom-weekly-${Date.now()}-${index}`),name,progress:String(item.progress||""),next:String(item.next||""),risk:String(item.risk||""),selected:item.selected!==false,custom:true,sharedProjectIds:Array.isArray(item.sharedProjectIds)?item.sharedProjectIds.map(String):[],sharedParentId:String(item.sharedParentId||"")});
       });
+      const knownIds=new Set(normalized.map(item=>item.projectId));
+      normalized.forEach(item=>{item.sharedProjectIds=[...new Set(item.sharedProjectIds.filter(id=>knownIds.has(id)&&id!==item.projectId))];if(!knownIds.has(item.sharedParentId)||item.sharedParentId===item.projectId)item.sharedParentId=""});
+      normalized.forEach(parent=>parent.sharedProjectIds.forEach(id=>{const child=normalized.find(item=>item.projectId===id);if(child){child.sharedParentId=parent.projectId;child.selected=false}}));
       return normalized;
     }
-    function selectedWeeklyProjects(){return weeklyProjects.filter(item=>item.selected!==false)}
+    const weeklyItemByProjectId=id=>weeklyProjects.find(item=>item.projectId===id);
+    const weeklyParentOf=item=>item?.sharedParentId?weeklyItemByProjectId(item.sharedParentId):null;
+    const weeklyItemIncluded=item=>Boolean(item)&&(item.sharedParentId?weeklyParentOf(item)?.selected!==false:item.selected!==false);
+    function selectedWeeklyProjects(){return weeklyProjects.filter(item=>item.selected!==false&&!item.sharedParentId)}
+    function weeklyEntryItems(item){return [item,...(item?.sharedProjectIds||[]).map(weeklyItemByProjectId).filter(Boolean)]}
+    function weeklyEntryName(item){return weeklyEntryItems(item).map(entry=>entry.name).filter(Boolean).join("、")||"未命名项目"}
+    function includedWeeklyProjectCount(){return weeklyProjects.filter(weeklyItemIncluded).length}
     function cloneWeeklyExample(){return normalizeWeeklyProjects(weeklyExample,projects)}
     function defaultWeekLabel(){
       const now=new Date(),day=now.getDay()||7,monday=new Date(now);
@@ -2057,9 +2066,13 @@
     function formatFullDate(value){if(!value)return"未标注日期";const date=parse(value);return`${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())}`}
     function historySort(a,b){return (b.end||b.savedAt||"").localeCompare(a.end||a.savedAt||"")||(b.savedAt||"").localeCompare(a.savedAt||"")}
     function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]))}
-    function weeklyProjectPickerMarkup(summary,key){
-      const options=weeklyProjects.length?weeklyProjects.map((item,index)=>`<div class="weekly-project-option"><input id="weekly-project-${key}-${index}" class="weekly-project-check" type="checkbox" data-index="${index}" ${item.selected!==false?"checked":""}><label for="weekly-project-${key}-${index}">${escapeHtml(item.name)}${item.custom?'<span class="archive-help"> · 自定义</span>':""}</label>${item.custom?`<button type="button" class="remove-weekly-custom ghost-danger" data-index="${index}" aria-label="删除自定义项目${escapeHtml(item.name)}">删除</button>`:"<span></span>"}</div>`).join(""):'<div class="weekly-project-empty">暂无可选项目，可在下方添加自定义项目。</div>';
-      return `<details class="weekly-project-picker" data-picker-key="${escapeHtml(key)}"><summary>${escapeHtml(summary)}</summary><div class="weekly-project-menu"><div class="weekly-project-options">${options}</div><div class="weekly-project-custom"><input class="custom-weekly-project-name" type="text" maxlength="50" placeholder="输入自定义项目名称"><button type="button" class="add-custom-weekly-project">＋ 添加</button></div></div></details>`;
+    function weeklyProjectPickerMarkup(summary,key,entryIndex=-1){
+      const entry=entryIndex>=0?weeklyProjects[entryIndex]:null,groupIds=new Set(entry?[entry.projectId,...entry.sharedProjectIds]:[]);
+      const options=weeklyProjects.length?weeklyProjects.map((item,index)=>{
+        const checked=entry?groupIds.has(item.projectId):weeklyItemIncluded(item),locked=Boolean(entry&&item.projectId===entry.projectId),archived=!item.custom&&projectById(item.projectId)?.archived;
+        return `<div class="weekly-project-option"><input id="weekly-project-${key}-${index}" class="weekly-project-check" type="checkbox" data-index="${index}" ${checked?"checked":""} ${locked?"disabled":""}><label for="weekly-project-${key}-${index}">${escapeHtml(item.name)}${archived?'<span class="archive-help"> · 已归档</span>':""}${item.custom?'<span class="archive-help"> · 自定义</span>':""}</label>${item.custom?`<button type="button" class="remove-weekly-custom ghost-danger" data-index="${index}" aria-label="删除自定义项目${escapeHtml(item.name)}">删除</button>`:"<span></span>"}</div>`;
+      }).join(""):'<div class="weekly-project-empty">暂无可选项目，可在下方添加自定义项目。</div>';
+      return `<details class="weekly-project-picker" data-picker-key="${escapeHtml(key)}" data-entry-index="${entryIndex}"><summary>${escapeHtml(summary)}</summary><div class="weekly-project-menu"><div class="weekly-project-options">${options}</div><div class="weekly-project-custom"><input class="custom-weekly-project-name" type="text" maxlength="50" placeholder="输入自定义项目名称"><button type="button" class="add-custom-weekly-project">＋ 添加</button></div></div></details>`;
     }
     function syncWeeklyProjects(){
       document.querySelectorAll(".project-editor").forEach(card=>{
@@ -2072,12 +2085,19 @@
       });
       saveWeeklyProjects();
     }
+    function detachWeeklyItem(item){
+      const parent=weeklyParentOf(item);
+      if(parent)parent.sharedProjectIds=parent.sharedProjectIds.filter(id=>id!==item.projectId);
+      item.sharedParentId="";
+    }
     function addCustomWeeklyProject(input){
       syncWeeklyProjects();
-      const name=input.value.trim();
+      const name=input.value.trim(),picker=input.closest(".weekly-project-picker"),entryIndex=Number(picker?.dataset.entryIndex??-1);
       if(!name)return input.focus();
       if(weeklyProjects.some(item=>item.name.trim().toLowerCase()===name.toLowerCase()))return alert("该项目已经在周报项目列表中。");
-      weeklyProjects.push({projectId:`custom-weekly-${Date.now()}`,name,progress:"",next:"",risk:"",selected:true,custom:true});
+      const parent=entryIndex>=0?weeklyProjects[entryIndex]:null,item={projectId:`custom-weekly-${Date.now()}`,name,progress:"",next:"",risk:"",selected:!parent,custom:true,sharedProjectIds:[],sharedParentId:parent?.projectId||""};
+      weeklyProjects.push(item);
+      if(parent)parent.sharedProjectIds=[...new Set([...parent.sharedProjectIds,item.projectId])];
       input.value="";
       saveWeeklyProjects();
       renderWeeklyEditors();
@@ -2086,14 +2106,30 @@
     function bindWeeklyProjectPickers(){
       document.querySelectorAll(".weekly-project-check").forEach(checkbox=>checkbox.addEventListener("change",()=>{
         syncWeeklyProjects();
-        const index=Number(checkbox.dataset.index),item=weeklyProjects[index];
-        if(!item)return;
-        item.selected=checkbox.checked;
+        const picker=checkbox.closest(".weekly-project-picker"),entryIndex=Number(picker?.dataset.entryIndex??-1),target=weeklyProjects[Number(checkbox.dataset.index)];
+        if(!target)return;
+        if(entryIndex>=0){
+          const parent=weeklyProjects[entryIndex];
+          if(!parent||target.projectId===parent.projectId)return;
+          if(checkbox.checked){
+            const moving=[target,...target.sharedProjectIds.map(weeklyItemByProjectId).filter(Boolean)];
+            target.sharedProjectIds=[];
+            moving.forEach(item=>{if(item.projectId===parent.projectId)return;detachWeeklyItem(item);item.selected=false;item.sharedParentId=parent.projectId;if(!parent.sharedProjectIds.includes(item.projectId))parent.sharedProjectIds.push(item.projectId)});
+          }else{
+            parent.sharedProjectIds=parent.sharedProjectIds.filter(id=>id!==target.projectId);
+            target.sharedParentId="";
+            target.selected=true;
+          }
+        }else if(checkbox.checked){
+          detachWeeklyItem(target);
+          target.selected=true;
+        }else{
+          if(target.sharedParentId)detachWeeklyItem(target);
+          target.selected=false;
+        }
         saveWeeklyProjects();
-        document.querySelectorAll(`.weekly-project-check[data-index="${index}"]`).forEach(peer=>peer.checked=checkbox.checked);
-        const toolbarSummary=document.querySelector("#weeklyProjectToolbarPicker summary"),selectedCount=selectedWeeklyProjects().length;
+        const toolbarSummary=document.querySelector("#weeklyProjectToolbarPicker summary"),selectedCount=includedWeeklyProjectCount();
         if(toolbarSummary)toolbarSummary.textContent=selectedCount?`已选 ${selectedCount} 个项目`:"请选择汇报项目";
-        const picker=checkbox.closest(".weekly-project-picker");
         if(picker)picker.dataset.changed="true";
       }));
       document.querySelectorAll(".weekly-project-picker").forEach(picker=>picker.addEventListener("toggle",()=>{
@@ -2105,6 +2141,8 @@
         syncWeeklyProjects();
         const index=Number(button.dataset.index),item=weeklyProjects[index];
         if(!item?.custom)return;
+        detachWeeklyItem(item);
+        item.sharedProjectIds.forEach(id=>{const child=weeklyItemByProjectId(id);if(child){child.sharedParentId="";child.selected=true}});
         weeklyProjects.splice(index,1);
         saveWeeklyProjects();
         renderWeeklyEditors();
@@ -2112,12 +2150,12 @@
       }));
     }
     function renderWeeklyEditors(){
-      const selected=selectedWeeklyProjects(),toolbarPicker=el("weeklyProjectToolbarPicker");
-      if(toolbarPicker)toolbarPicker.innerHTML=weeklyProjectPickerMarkup(selected.length?`已选 ${selected.length} 个项目`:"请选择汇报项目","toolbar");
+      const selected=selectedWeeklyProjects(),toolbarPicker=el("weeklyProjectToolbarPicker"),includedCount=includedWeeklyProjectCount();
+      if(toolbarPicker)toolbarPicker.innerHTML=weeklyProjectPickerMarkup(includedCount?`已选 ${includedCount} 个项目`:"请选择汇报项目","toolbar",-1);
       el("projectEditors").innerHTML=selected.length?selected.map(item=>{
-        const index=weeklyProjects.indexOf(item);
-        return `<article class="project-editor" data-index="${index}" data-project-id="${escapeHtml(item.projectId||"")}"><button type="button" class="clear-weekly-project ghost-danger" aria-label="清空${escapeHtml(item.name||"项目")}本周内容">清空</button><div class="field"><label>项目名称</label>${weeklyProjectPickerMarkup(item.name,index)}</div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`;
-      }).join(""):`<div class="weekly-selector-empty"><div class="field"><label>项目名称</label>${weeklyProjectPickerMarkup("请选择汇报项目","empty")}</div><div class="archive-help">可勾选多个现有项目，或在下拉框中添加自定义项目。</div></div>`;
+        const index=weeklyProjects.indexOf(item),entryName=weeklyEntryName(item);
+        return `<article class="project-editor" data-index="${index}" data-project-id="${escapeHtml(item.projectId||"")}"><button type="button" class="clear-weekly-project ghost-danger" aria-label="清空${escapeHtml(entryName)}本周内容">清空</button><div class="field"><label>项目名称（可多选并共用内容）</label>${weeklyProjectPickerMarkup(entryName,index,index)}</div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`;
+      }).join(""):`<div class="weekly-selector-empty"><div class="field"><label>项目名称</label>${weeklyProjectPickerMarkup("请选择汇报项目","empty",-1)}</div><div class="archive-help">可勾选现有项目（包括已归档项目），或添加自定义项目。</div></div>`;
       bindWeeklyProjectPickers();
       document.querySelectorAll(".project-editor textarea").forEach(node=>node.addEventListener("input",()=>{syncWeeklyProjects();generateWeeklyReport()}));
       document.querySelectorAll(".clear-weekly-project").forEach(button=>button.addEventListener("click",()=>{syncWeeklyProjects();const item=weeklyProjects[Number(button.closest(".project-editor").dataset.index)];if(!item)return;item.progress="";item.next="";item.risk="";saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport()}));
@@ -2125,8 +2163,8 @@
     function generateWeeklyReport(){
       if(document.querySelector(".project-editor"))syncWeeklyProjects();
       const period=el("weekLabel").value.trim();
-      const sections=selectedWeeklyProjects().filter(item=>item.name||item.progress||item.next||item.risk).map((item,index)=>{
-        const lines=[`${index+1}. ${item.name||"未命名项目"}`];
+      const sections=selectedWeeklyProjects().filter(item=>weeklyEntryName(item)||item.progress||item.next||item.risk).map((item,index)=>{
+        const lines=[`${index+1}. ${weeklyEntryName(item)}`];
         if(item.progress)lines.push(`- 本周进展：${item.progress}`);
         if(item.next)lines.push(`- 下一步：${item.next}`);
         if(item.risk&&item.risk!=="无"&&item.risk!=="无。")lines.push(`- 待确认／风险：${item.risk}`);
@@ -2136,8 +2174,8 @@
       return el("reportOutput").textContent;
     }
     function saveReportSnapshot(){
-      const text=generateWeeklyReport(),period=el("weekLabel").value.trim()||"未命名周期",range=normalizePeriod(period),now=new Date();
-      const snapshot={id:`report-${Date.now()}`,period,start:range.start,end:range.end,savedAt:now.toISOString(),projects:selectedWeeklyProjects().map(item=>({...item})),text};
+      const text=generateWeeklyReport(),period=el("weekLabel").value.trim()||"未命名周期",range=normalizePeriod(period),now=new Date(),entries=selectedWeeklyProjects(),includedIds=new Set(entries.flatMap(item=>weeklyEntryItems(item).map(entry=>entry.projectId)));
+      const snapshot={id:`report-${Date.now()}`,period,start:range.start,end:range.end,savedAt:now.toISOString(),projects:weeklyProjects.filter(item=>includedIds.has(item.projectId)).map(item=>({...item,reportName:item.sharedParentId?"":weeklyEntryName(item)})),text};
       const existingIndex=reportHistory.findIndex(item=>(range.start&&range.end&&item.start===range.start&&item.end===range.end)||(!range.start&&item.period===period));
       if(existingIndex>=0){snapshot.id=reportHistory[existingIndex].id;reportHistory.splice(existingIndex,1,snapshot)}else reportHistory.push(snapshot);
       reportHistory.sort(historySort);saveReportHistory();renderReportHistory();setEvaluationDefaults();
@@ -2171,8 +2209,8 @@
       const selected=reportHistory.filter(item=>item.start&&item.end&&item.end>=start&&item.start<=end).sort((a,b)=>(a.start||"").localeCompare(b.start||""));
       if(!selected.length){el("evaluationOutput").textContent=`${formatFullDate(start)}—${formatFullDate(end)} 暂无已保存的汇报预览，无法生成评估。`;return el("evaluationOutput").textContent}
       const byProject=new Map();
-      selected.forEach(snapshot=>(snapshot.projects||[]).forEach(project=>{
-        const name=project.name||"未命名项目";if(!byProject.has(name))byProject.set(name,[]);byProject.get(name).push({...project,period:snapshot.period,start:snapshot.start,end:snapshot.end});
+      selected.forEach(snapshot=>(snapshot.projects||[]).filter(project=>!project.sharedParentId).forEach(project=>{
+        const name=project.reportName||project.name||"未命名项目";if(!byProject.has(name))byProject.set(name,[]);byProject.get(name).push({...project,period:snapshot.period,start:snapshot.start,end:snapshot.end});
       }));
       const latest=[...byProject.entries()].map(([name,records])=>({name,records,latest:records[records.length-1]}));
       const risky=latest.filter(item=>!isNoRisk(item.latest.risk));
