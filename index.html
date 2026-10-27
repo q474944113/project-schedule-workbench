@@ -77,6 +77,7 @@
     .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
     .panel-head h2, .detail h2 { margin: 0; font-size: 18px; }
     .month-nav { display: flex; gap: 6px; }
+    .calendar-mode-toggle { min-width: 76px; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
     .legend span { display: inline-flex; align-items: center; gap: 6px; }
     .swatch { width: 12px; height: 12px; border-radius: 3px; }
@@ -90,6 +91,7 @@
     .day.today { box-shadow: inset 0 0 0 2px var(--orange); }
     .date-row { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
     .count { color: var(--muted); font-size: 11px; font-weight: 400; }
+    .calendar-day-marker { display: none; }
     .event { display: block; width: 100%; min-width: 0; margin-top: 6px; padding: 5px 6px; border: 0; border-left: 4px solid currentColor; border-radius: 5px; text-align: left; font-size: 12px; line-height: 1.35; white-space: normal; overflow: visible; overflow-wrap: anywhere; word-break: break-word; }
     .event.production { color: #087da0; background: var(--blue-soft); }
     .event.milestone { color: #c65c0d; background: var(--orange-soft); }
@@ -106,14 +108,15 @@
     .event[draggable="true"]:active { cursor: grabbing; }
     .day.drag-over { background: #fff4e9; box-shadow: inset 0 0 0 3px var(--orange); }
     .drag-help { padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-    .detail { position: fixed; z-index: 220; top: 16px; right: 16px; bottom: 16px; width: min(390px, calc(100vw - 32px)); min-height: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; transform: translateX(calc(100% + 36px)); opacity: 0; pointer-events: none; transition: transform .24s var(--island-bounce), opacity .18s ease; box-shadow: 0 18px 48px rgba(61,52,40,.22), 0 5px 0 rgba(126,104,73,.1); }
+    .detail { position: fixed; z-index: 220; top: 16px; right: 16px; bottom: 16px; display: flex; flex-direction: column; width: min(390px, calc(100vw - 32px)); min-height: 0; padding: 0; overflow: hidden; transform: translateX(calc(100% + 36px)); opacity: 0; pointer-events: none; transition: transform .24s var(--island-bounce), opacity .18s ease; box-shadow: 0 18px 48px rgba(61,52,40,.22), 0 5px 0 rgba(126,104,73,.1); }
     .detail.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
     .detail-drawer-head { position: sticky; z-index: 3; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 15px 16px 13px; border-bottom: 1px solid var(--line); background: rgba(255,253,246,.97); backdrop-filter: blur(8px); }
     .detail-drawer-title { display: grid; gap: 4px; }
     .detail-drawer-head .detail-date { margin: 0; }
     .detail-close { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 !important; border-radius: 50% !important; font-size: 22px; line-height: 1; }
+    .detail-scroll { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scrollbar-gutter: stable; }
     .detail #detailBody { padding: 4px 16px 0; }
-    .detail > .source { margin: 12px 16px 16px; }
+    .detail-scroll > .source { margin: 12px 16px 16px; }
     .detail-drawer-toggle { position: fixed; z-index: 210; top: 50%; right: 0; display: inline-flex; align-items: center; gap: 6px; padding: 13px 7px !important; border-right: 0 !important; border-radius: 16px 0 0 16px !important; background: var(--island-primary) !important; color: #fff !important; box-shadow: 0 4px 0 var(--island-primary-dark), -5px 8px 20px rgba(61,52,40,.14) !important; writing-mode: vertical-rl; letter-spacing: .08em; transform: translateY(-50%) !important; }
     .detail-drawer-toggle:hover { transform: translateY(-50%) translateX(-2px) !important; }
     .detail.open + .detail-drawer-toggle { opacity: 0; pointer-events: none; }
@@ -449,6 +452,49 @@
       .day { overflow: hidden; }
       .event { min-width: 0; }
     }
+    .calendar.compact-mode { width: 100%; min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+    .calendar.compact-mode .weekday { min-width: 0; padding: 7px 2px; font-size: 12px; }
+    .calendar.compact-mode .day { position: relative; min-width: 0; min-height: clamp(62px, 9vw, 88px); padding: 7px 6px; overflow: hidden; }
+    .calendar.compact-mode .day .event, .calendar.compact-mode .day .count { display: none; }
+    .calendar.compact-mode .date-row { align-items: flex-start; font-size: 13px; }
+    .calendar.compact-mode .calendar-day-marker {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 19px;
+      height: 19px;
+      padding: 0 5px;
+      border: 2px solid #fffdf7;
+      border-radius: 999px;
+      background: var(--island-primary);
+      color: #fff;
+      box-shadow: 0 2px 0 var(--island-primary-dark), 0 3px 8px rgba(61,52,40,.16);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .calendar.compact-mode .day.today .calendar-day-marker { background: #efb92e; box-shadow: 0 2px 0 #c98c19, 0 3px 8px rgba(61,52,40,.16); }
+    .calendar.compact-mode .day:active { background: #fff0d6; }
+    @media (max-width: 760px) and (orientation: portrait) {
+      .detail {
+        top: auto;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        width: auto;
+        max-height: min(76vh, 620px);
+        border-radius: 24px;
+        transform: translateY(calc(100% + 28px));
+        box-shadow: 0 18px 48px rgba(61,52,40,.24), 0 5px 0 rgba(126,104,73,.12);
+      }
+      .detail.open { transform: translateY(0); }
+      .detail-drawer-head { border-radius: 24px 24px 0 0; }
+      .detail-drawer-toggle { top: auto; right: 8px; bottom: 10px; padding: 9px 13px !important; border-right: 2px solid var(--island-primary-dark) !important; border-radius: 16px !important; writing-mode: horizontal-tb; transform: none !important; }
+      .detail-drawer-toggle:hover { transform: translateY(-2px) !important; }
+    }
     /* Animal Island UI inspired theme.
        Reference: https://github.com/yanstu/animal-island-ui-vue (MIT) */
     :root {
@@ -513,6 +559,7 @@
     .card::after { content:""; position:absolute; width:42px; height:42px; right:-19px; bottom:-22px; border-radius:50%; background:rgba(25,185,170,.11); }
     .metric-value { color:#725d42; }
     .panel { overflow:hidden; }
+    .panel.detail { overflow:hidden; }
     .panel-head, .output-head, .archive-head { background:linear-gradient(180deg,#fffdf8,#f8f3e6); }
     .panel-head h2, .detail h2, .overview-section h3 { color:#725d42; }
     .project-overview-card, .overview-box, .duration-stat, .project-editor, .project-manager, .material-manager, .archive-card, .output-card { border-color:rgba(159,146,125,.5); border-radius:16px; background:#fffdf7; box-shadow:0 3px 0 rgba(126,104,73,.06); }
@@ -827,6 +874,7 @@
         <div class="panel-head">
           <h2 id="viewTitle">项目统筹总览</h2>
           <div class="month-nav" id="monthNav">
+            <button type="button" id="calendarModeToggle" class="calendar-mode-toggle" aria-pressed="false" title="切换日历显示模式">详细模式</button>
             <button type="button" id="prevMonth" aria-label="上个月">‹</button>
             <button type="button" id="goToday" title="返回当前月份">今天</button>
             <button type="button" id="nextMonth" aria-label="下个月">›</button>
@@ -967,8 +1015,7 @@
 
       <aside id="detailPanel" class="panel detail" aria-live="polite" aria-hidden="true">
         <div class="detail-drawer-head"><div class="detail-drawer-title"><div class="detail-date" id="detailDate">2026 年 9 月 7 日</div><h2>当日安排</h2></div><button type="button" id="closeDetailPanel" class="detail-close" aria-label="关闭当日安排">×</button></div>
-        <div id="detailBody"></div>
-        <div class="source">排期依据：各项目原始排期与在线编辑记录。</div>
+        <div class="detail-scroll"><div id="detailBody"></div><div class="source">排期依据：各项目原始排期与在线编辑记录。</div></div>
       </aside>
       <button type="button" id="detailDrawerToggle" class="detail-drawer-toggle" aria-label="打开当日安排" hidden>当日安排</button>
     </section>
@@ -1644,8 +1691,18 @@
 ];
     let weeklyProjects=normalizeWeeklyProjects(loadWeeklyProjects(),projects);
     let reportHistory=loadReportHistory();
+    const CALENDAR_DISPLAY_KEY="project-workbench-calendar-display-v1";
+    let calendarLandscapeMode=localStorage.getItem(CALENDAR_DISPLAY_KEY)==="compact"?"compact":"detailed";
     let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
+    const calendarAutoCompact=()=>window.innerWidth/window.innerHeight<=1.5;
+    function applyCalendarDisplayMode(){
+      const automatic=calendarAutoCompact(),compact=automatic||calendarLandscapeMode==="compact",calendar=el("calendar"),toggle=el("calendarModeToggle");
+      calendar.classList.toggle("compact-mode",compact);
+      toggle.hidden=automatic;
+      toggle.textContent=compact?"简洁模式":"详细模式";
+      toggle.setAttribute("aria-pressed",String(compact));
+    }
     function setCloudStatus(state,detail=""){
       const node=el("cloudStatus");
       if(!node)return;
@@ -2383,11 +2440,12 @@
         if(items.length)weekdayHasContent[date.getDay()]=true;
       }
       const hasAnyContent=weekdayHasContent.some(Boolean),compactColumn="clamp(46px, 3.8vw, 64px)",calendar=el("calendar");
+      applyCalendarDisplayMode();
       calendar.style.gridTemplateColumns=(hasAnyContent?weekdayHasContent.map(hasContent=>hasContent?"minmax(0, 1fr)":compactColumn):Array(7).fill("minmax(0, 1fr)")).join(" ");
       weekdays.forEach(x=>cells.push(`<div class="weekday">${x}</div>`));
       for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
       monthDays.forEach(({day,date,key,items})=>{
-        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="${t.actualEnd?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${t.actualEnd?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
+        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.length?`<span class="calendar-day-marker" aria-label="当天 ${items.length} 项排期">${items.length}</span>`:""}${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="${t.actualEnd?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${t.actualEnd?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
       });
       calendar.innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
       document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
@@ -2487,6 +2545,8 @@
     el("globalSearch").addEventListener("input",e=>{searchFilter=e.target.value.trim();render();showDetail(parse(TODAY))});
     el("showArchived").addEventListener("change",e=>{showArchived=e.target.checked;render();showDetail(parse(TODAY))});
     el("refreshCloudHistory").addEventListener("click",loadCloudHistory);
+    el("calendarModeToggle").addEventListener("click",()=>{calendarLandscapeMode=calendarLandscapeMode==="compact"?"detailed":"compact";localStorage.setItem(CALENDAR_DISPLAY_KEY,calendarLandscapeMode);applyCalendarDisplayMode()});
+    window.addEventListener("resize",applyCalendarDisplayMode);
     el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
     el("nextMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth+1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
     el("goToday").addEventListener("click",()=>{const today=parse(TODAY);currentYear=today.getFullYear();currentMonth=today.getMonth();renderCalendar();showDetail(today)});
