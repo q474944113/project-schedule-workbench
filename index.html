@@ -740,6 +740,15 @@
     .island-select-option.is-selected { background:#e6f9f6 !important; color:#11a89b !important; font-weight:700; }
     .island-select-option.is-selected.is-active { background:#d9f3ef !important; }
     .island-select-option:disabled { opacity:.5; cursor:not-allowed; }
+    input[data-person-combobox] {
+      appearance:none;
+      padding-right:36px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%238a7b66' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 10px center;
+    }
+    input[data-person-combobox][aria-expanded="true"] { border-color:#ffcc00; box-shadow:0 3px 0 #e0b800,0 0 0 3px rgba(255,204,0,.15); }
+    .person-combobox-empty { padding:12px 14px; color:#a0936e; font-size:12px; }
     @keyframes island-select-enter { from{opacity:0;transform:translateY(-5px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
     @media (max-width:560px) {
       .island-select-trigger { min-height:42px; padding:0 14px; }
@@ -883,8 +892,8 @@
           <details id="projectManagerDetails" class="project-manager" open><summary class="manager-summary">项目设置</summary>
             <div class="project-create">
               <input id="newProjectName" type="text" maxlength="40" placeholder="输入新项目名称">
-              <input id="newProjectOwner" type="text" maxlength="30" list="ownerHistoryList" placeholder="负责人（可输入或选择）">
-              <input id="newProjectContact" type="text" maxlength="30" list="contactHistoryList" placeholder="客户对接人（可输入或选择）">
+              <input id="newProjectOwner" type="text" maxlength="30" data-person-combobox="owner" placeholder="负责人（可输入或选择）">
+              <input id="newProjectContact" type="text" maxlength="30" data-person-combobox="contact" placeholder="客户对接人（可输入或选择）">
               <select id="newProjectStatus" aria-label="新项目状态"><option value="auto" selected>自动判断</option><option value="paused">已暂停</option></select>
               <select id="newProjectPriority" aria-label="新项目优先级"><option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option></select>
 
@@ -898,15 +907,13 @@
               <select id="newMaterialProject" aria-label="所属项目"></select>
               <input id="newMaterialName" type="text" maxlength="50" placeholder="子素材名称">
               <select id="newMaterialType" aria-label="素材类型"><option value="unclassified" selected>未分类</option><option value="twoD">2D</option><option value="threeD">3D</option><option value="twoDIteration">2D迭代</option><option value="threeDIteration">3D迭代</option></select>
-              <input id="newMaterialOwner" type="text" maxlength="30" list="ownerHistoryList" placeholder="负责人（默认继承项目）">
-              <input id="newMaterialContact" type="text" maxlength="30" list="contactHistoryList" placeholder="客户对接人（默认继承项目）">
+              <input id="newMaterialOwner" type="text" maxlength="30" data-person-combobox="owner" placeholder="负责人（默认继承项目）">
+              <input id="newMaterialContact" type="text" maxlength="30" data-person-combobox="contact" placeholder="客户对接人（默认继承项目）">
               <select id="newMaterialStatus" aria-label="子素材状态"><option value="not_started">未开始</option><option value="production">制作中</option><option value="pending_submit">待提交</option><option value="pending_feedback">待反馈</option><option value="revision">修改中</option><option value="completed">已完成</option></select>
               <button type="button" id="addMaterial" class="primary">＋ 添加子素材</button>
             </div>
             <div id="materialManagerList" class="material-manager-list"></div>
           </details>
-          <datalist id="ownerHistoryList"></datalist>
-          <datalist id="contactHistoryList"></datalist>
           <div id="scheduleEditorList" class="schedule-editor-list"></div>
         </div>
         <div id="weeklyPanel" class="weekly" hidden>
@@ -1373,7 +1380,6 @@
     const SCHEDULE_STORAGE_KEY="project-workbench-schedule-v3";
     const PROJECTS_STORAGE_KEY="project-workbench-projects-v1";
     const MATERIALS_STORAGE_KEY="project-workbench-materials-v1";
-    const PEOPLE_HISTORY_STORAGE_KEY="project-workbench-people-history-v1";
     const DEFAULT_PROJECTS=[
       {id:"zj",name:"杖剑传说",color:"#f58228",owner:"",contact:"",status:"active",priority:"medium",archived:false},
       {id:"s3g",name:"S3G",color:"#7a61c9",owner:"",contact:"",status:"active",priority:"medium",archived:false}
@@ -1465,13 +1471,8 @@
     }
     let materials=ensureTaskLinkedMaterials(loadMaterials(projects,tasks),projects,tasks);
     const normalizePersonList=values=>[...new Set((Array.isArray(values)?values:[]).map(value=>String(value||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"zh-CN"));
-    function normalizePeopleHistory(value){const source=value&&typeof value==="object"?value:{};return{owners:normalizePersonList(source.owners),contacts:normalizePersonList(source.contacts)}}
-    function loadPeopleHistory(){try{return normalizePeopleHistory(JSON.parse(localStorage.getItem(PEOPLE_HISTORY_STORAGE_KEY)))}catch(_){return normalizePeopleHistory()}}
-    function mergePeopleHistory(history){const source=normalizePeopleHistory(history);return normalizePeopleHistory({owners:[...source.owners,...projects.map(item=>item.owner),...materials.map(item=>item.owner)],contacts:[...source.contacts,...projects.map(item=>item.contact),...materials.map(item=>item.contact)]})}
-    let peopleHistory=mergePeopleHistory(loadPeopleHistory());
-    function rememberPeopleHistory(){peopleHistory=mergePeopleHistory(peopleHistory);try{localStorage.setItem(PEOPLE_HISTORY_STORAGE_KEY,JSON.stringify(peopleHistory))}catch(_){}}
-    function renderPeopleHistory(){peopleHistory=mergePeopleHistory(peopleHistory);el("ownerHistoryList").innerHTML=peopleHistory.owners.map(value=>`<option value="${escapeHtml(value)}"></option>`).join("");el("contactHistoryList").innerHTML=peopleHistory.contacts.map(value=>`<option value="${escapeHtml(value)}"></option>`).join("")}
-    try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials));localStorage.setItem(PEOPLE_HISTORY_STORAGE_KEY,JSON.stringify(peopleHistory))}catch(_){}
+    function currentPersonOptions(field){return normalizePersonList([...projects.map(item=>item[field]),...materials.map(item=>item[field])])}
+    try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials))}catch(_){}
     const typeNames={milestone:"提交节点",production:"制作任务",supervision:"监修节点",acceptance:"验收节点",packaging:"打包节点",revision:"修改任务"},taskStatusNames={not_started:"未开始",in_progress:"进行中",waiting:"待确认",completed:"已完成"},weekdays=["日","一","二","三","四","五","六"];
     const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
     const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
@@ -1650,14 +1651,13 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:13,projects:projects.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),peopleHistory:{owners:[...peopleHistory.owners],contacts:[...peopleHistory.contacts]},weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:14,projects:projects.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
         localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));
         localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));
         localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials));
-        localStorage.setItem(PEOPLE_HISTORY_STORAGE_KEY,JSON.stringify(peopleHistory));
         localStorage.setItem(WEEKLY_STORAGE_KEY,JSON.stringify(weeklyProjects));
         localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(reportHistory));
         localStorage.setItem(REPORT_HISTORY_SEED_KEY,"1");
@@ -1669,8 +1669,6 @@
       tasks=payload.tasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"cloud")));
       projects=normalizeProjects(payload.projects,payload.tasks);
       materials=ensureTaskLinkedMaterials(normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials)),projects,tasks);
-      const cloudPeopleHistory=normalizePeopleHistory(payload.peopleHistory);
-      peopleHistory=mergePeopleHistory({owners:[...peopleHistory.owners,...cloudPeopleHistory.owners],contacts:[...peopleHistory.contacts,...cloudPeopleHistory.contacts]});
       sanitizeMaterialProgress();
       weeklyProjects=normalizeWeeklyProjects(payload.weeklyProjects,projects);
       reportHistory=payload.reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))}));
@@ -1725,7 +1723,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds))||!data.payload.peopleHistory||Number(data.payload.schemaVersion||0)<13||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<14||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1871,13 +1869,11 @@
       saveScheduleTasks();updateSummary();renderCalendar();renderGantt();renderDuration();
     }
     function saveProjects(){
-      rememberPeopleHistory();
       try{localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects))}catch(_){}
       scheduleCloudSave();
     }
     function saveMaterials(){
       materials=normalizeMaterials(materials,projects,tasks,false);
-      rememberPeopleHistory();
       try{localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials))}catch(_){}
       scheduleCloudSave();
     }
@@ -1945,7 +1941,7 @@
       select.innerHTML=focused?`<option value="${escapeHtml(focused.id)}">${escapeHtml(focused.name)}</option>`:projectSelectOptions(selected);if(projectById(selected))select.value=selected;
       applyNewMaterialDefaults(false);
       el("materialManagerCount").textContent=`${managerMaterials.length} 条子素材`;
-      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" type="text" maxlength="30" list="ownerHistoryList" value="${escapeHtml(material.owner)}" placeholder="负责人"><input data-material-field="contact" type="text" maxlength="30" list="contactHistoryList" value="${escapeHtml(material.contact)}" placeholder="客户对接人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" data-person-combobox="owner" type="text" maxlength="30" value="${escapeHtml(material.owner)}" placeholder="负责人"><input data-material-field="contact" data-person-combobox="contact" type="text" maxlength="30" value="${escapeHtml(material.contact)}" placeholder="客户对接人"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span></div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,value=control.value.trim();
@@ -1973,7 +1969,7 @@
       el("projectStatusFilter").value=projectStatusFilter;
       el("projectPriorityFilter").value=projectPriorityFilter;
       el("projectLegend").innerHTML=managerProjects.filter(project=>showArchived||!project.archived||project.id===focusedProjectId).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
-      el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length,automaticStatus=scheduledProjectStatus(project),demand=normalizeProjectDemand(project.demand);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" maxlength="30" list="ownerHistoryList" value="${escapeHtml(project.owner)}" placeholder="负责人"><input type="text" class="project-contact-input" maxlength="30" list="contactHistoryList" value="${escapeHtml(project.contact)}" placeholder="客户对接人"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span><div class="project-demand-editor"><span class="project-demand-label">素材需求量</span><label class="project-demand-field">2D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoD" value="${demand.twoD}" aria-label="2D需求量"></label><label class="project-demand-field">3D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeD" value="${demand.threeD}" aria-label="3D需求量"></label><label class="project-demand-field">2D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoDIteration" value="${demand.twoDIteration}" aria-label="2D迭代需求量"></label><label class="project-demand-field">3D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeDIteration" value="${demand.threeDIteration}" aria-label="3D迭代需求量"></label></div></div>`}).join("");
+      el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length,automaticStatus=scheduledProjectStatus(project),demand=normalizeProjectDemand(project.demand);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" data-person-combobox="owner" maxlength="30" value="${escapeHtml(project.owner)}" placeholder="负责人"><input type="text" class="project-contact-input" data-person-combobox="contact" maxlength="30" value="${escapeHtml(project.contact)}" placeholder="客户对接人"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span><div class="project-demand-editor"><span class="project-demand-label">素材需求量</span><label class="project-demand-field">2D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoD" value="${demand.twoD}" aria-label="2D需求量"></label><label class="project-demand-field">3D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeD" value="${demand.threeD}" aria-label="3D需求量"></label><label class="project-demand-field">2D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoDIteration" value="${demand.twoDIteration}" aria-label="2D迭代需求量"></label><label class="project-demand-field">3D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeDIteration" value="${demand.threeDIteration}" aria-label="3D迭代需求量"></label></div></div>`}).join("");
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=input.value.trim();saveProjects();render()}));
       document.querySelectorAll(".project-contact-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.contact=input.value.trim();saveProjects();render()}));
@@ -2425,7 +2421,6 @@
       }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
     }
     function render(){
-      renderPeopleHistory();
       let focused=projectById(focusedProjectId);
       if(focusedProjectId&&!focused){focusedProjectId="";projectFilter="all";focused=null}
       if(focused)projectFilter=focused.id;
@@ -2682,6 +2677,119 @@
       });
       window.addEventListener("resize", () => positionMenu(activeState));
       window.addEventListener("scroll", () => positionMenu(activeState), true);
+    })();
+  </script>
+  <script>
+    (() => {
+      const enhanced = new WeakSet();
+      const menu = document.createElement("div");
+      menu.className = "island-select-menu person-combobox-menu";
+      menu.hidden = true;
+      menu.setAttribute("role", "listbox");
+      document.body.appendChild(menu);
+      let activeInput = null;
+      let activeIndex = -1;
+      let filterByInput = false;
+      const candidatesFor = input => typeof currentPersonOptions === "function" ? currentPersonOptions(input.dataset.personCombobox) : [];
+      const filteredCandidates = input => {
+        const token = filterByInput ? input.value.trim().toLowerCase() : "";
+        const candidates = candidatesFor(input);
+        return token ? candidates.filter(value => value.toLowerCase().includes(token)) : candidates;
+      };
+      const positionMenu = () => {
+        if (!activeInput || menu.hidden || !activeInput.isConnected) return;
+        const rect = activeInput.getBoundingClientRect();
+        const width = Math.min(Math.max(rect.width, 150), Math.max(150, window.innerWidth - 16));
+        menu.style.width = `${width}px`;
+        menu.style.left = `${Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8))}px`;
+        menu.style.top = `${rect.bottom + 10}px`;
+        const height = menu.getBoundingClientRect().height;
+        if (rect.bottom + 10 + height > window.innerHeight - 8 && rect.top > height + 18) menu.style.top = `${rect.top - height - 10}px`;
+      };
+      const closeMenu = () => {
+        if (activeInput?.isConnected) activeInput.setAttribute("aria-expanded", "false");
+        activeInput = null;
+        activeIndex = -1;
+        filterByInput = false;
+        menu.hidden = true;
+        menu.replaceChildren();
+      };
+      const paintActive = () => {
+        [...menu.querySelectorAll(".island-select-option")].forEach((button,index)=>button.classList.toggle("is-active",index===activeIndex));
+        menu.children[activeIndex]?.scrollIntoView({block:"nearest"});
+      };
+      const choose = value => {
+        const input = activeInput;if(!input)return;
+        input.value = value;
+        closeMenu();
+        input.dispatchEvent(new Event("input",{bubbles:true}));
+        input.dispatchEvent(new Event("change",{bubbles:true}));
+        input.focus();
+      };
+      const renderMenu = () => {
+        if (!activeInput) return;
+        const candidates = filteredCandidates(activeInput);
+        menu.replaceChildren();
+        if (!candidates.length) {
+          const empty = document.createElement("div");
+          empty.className = "person-combobox-empty";
+          empty.textContent = "当前项目中暂无可选人员，可直接输入";
+          menu.appendChild(empty);
+          activeIndex = -1;
+        } else {
+          candidates.forEach((value,index)=>{
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "island-select-option";
+            button.setAttribute("role","option");
+            button.setAttribute("aria-selected",String(value===activeInput.value.trim()));
+            button.classList.toggle("is-selected",value===activeInput.value.trim());
+            button.textContent = value;
+            button.addEventListener("mousedown",event=>event.preventDefault());
+            button.addEventListener("mouseenter",()=>{activeIndex=index;paintActive()});
+            button.addEventListener("click",()=>choose(value));
+            menu.appendChild(button);
+          });
+          activeIndex = Math.max(0,candidates.findIndex(value=>value===activeInput.value.trim()));
+          paintActive();
+        }
+        positionMenu();
+      };
+      const openMenu = (input,shouldFilter=false) => {
+        activeInput = input;
+        filterByInput = shouldFilter;
+        input.setAttribute("aria-expanded","true");
+        menu.hidden = false;
+        renderMenu();
+        requestAnimationFrame(positionMenu);
+      };
+      const enhance = input => {
+        if (!(input instanceof HTMLInputElement) || enhanced.has(input)) return;
+        enhanced.add(input);
+        input.setAttribute("role","combobox");
+        input.setAttribute("aria-autocomplete","list");
+        input.setAttribute("aria-expanded","false");
+        input.addEventListener("focus",()=>openMenu(input));
+        input.addEventListener("click",()=>openMenu(input));
+        input.addEventListener("input",()=>{filterByInput=true;if(activeInput!==input)openMenu(input,true);else renderMenu()});
+        input.addEventListener("keydown",event=>{
+          const buttons=[...menu.querySelectorAll(".island-select-option")];
+          if(event.key==="ArrowDown"||event.key==="ArrowUp"){
+            event.preventDefault();if(activeInput!==input)openMenu(input);if(!buttons.length)return;
+            activeIndex=(activeIndex+(event.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length;paintActive();
+          }else if(event.key==="Enter"&&activeInput===input&&activeIndex>=0){event.preventDefault();buttons[activeIndex]?.click()}
+          else if(event.key==="Escape"&&activeInput===input){event.preventDefault();closeMenu()}
+        });
+      };
+      const enhanceAll = root => {
+        if(root instanceof HTMLInputElement&&root.matches("[data-person-combobox]"))enhance(root);
+        root.querySelectorAll?.("input[data-person-combobox]").forEach(enhance);
+      };
+      enhanceAll(document);
+      new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)enhanceAll(node)}))).observe(document.body,{childList:true,subtree:true});
+      document.addEventListener("mousedown",event=>{if(activeInput&&event.target!==activeInput&&!menu.contains(event.target))closeMenu()});
+      window.addEventListener("resize",positionMenu);
+      window.addEventListener("scroll",positionMenu,true);
     })();
   </script></body>
 </html>
