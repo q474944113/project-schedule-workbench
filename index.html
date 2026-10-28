@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>项目排期工作台</title>
+  <link rel="stylesheet" href="vendor/choices/choices.min.css">
+  <link rel="stylesheet" href="vendor/jkanban/jkanban.min.css">
   <style>
     :root {
       --bg: #f5f6f8;
@@ -197,8 +199,11 @@
     .ghost-danger { color: #b44545; }
     .report-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 16px; }
     .project-editor-list { display: grid; gap: 12px; }
-    .project-editor { position: relative; display: grid; grid-template-columns: 180px 1fr; gap: 10px 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
-    .project-editor .wide { grid-column: 2; }
+    .project-editor { position: relative; display: grid; grid-template-columns: minmax(0,1fr); gap: 10px 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+    .project-editor .wide { grid-column: 1; }
+    .weekly-project-heading { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+    .weekly-project-heading label { margin:0; }
+    .weekly-project-heading .clear-weekly-project { width:auto; min-width:0; min-height:0; padding:4px 10px !important; border-radius:10px !important; font-size:11px; line-height:1.2; box-shadow:0 2px 0 rgba(180,69,69,.2) !important; }
     .remove-project { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border: 0; background: transparent; color: #a44; }
     .output-card { position: sticky; top: 12px; align-self: start; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
     .output-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 13px; border-bottom: 1px solid var(--line); background: #fafafa; }
@@ -226,7 +231,7 @@
     .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .manager-summary { display: none; cursor: pointer; font-weight: 700; }
     .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
-    .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(130px, .7fr) minmax(130px, .7fr) 120px 100px auto; gap: 8px; align-items: center; }
+    .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(130px, .7fr) minmax(130px, .7fr) minmax(150px,.8fr) 120px 100px auto; gap: 8px; align-items: center; }
     .project-manager-list { display: grid; gap: 8px; margin-top: 10px; }
     .project-manager-item { display: grid; grid-template-columns: 28px minmax(120px, 1fr) minmax(120px, .7fr) minmax(120px, .7fr) 110px 90px auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
     .project-manager-item input[type="color"] { width: 25px; height: 25px; padding: 1px; border-radius: 50%; cursor: pointer; }
@@ -237,6 +242,17 @@
     .project-demand-label { color: #725d42; font-size: 12px; font-weight: 700; }
     .project-demand-field { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
     .project-demand-field input { width: 70px; min-width: 70px; padding: 6px 8px; text-align: center; }
+    .project-channel-editor { grid-column:1/-1; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:start; gap:8px 12px; padding-top:8px; border-top:1px dashed var(--line); }
+    .project-channel-editor > strong { padding-top:7px; color:#725d42; font-size:12px; }
+    .project-channel-body { display:grid; gap:7px; min-width:0; }
+    .project-channel-tags, .project-card-channels { display:flex; flex-wrap:wrap; gap:6px; }
+    .project-channel-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border:1px solid #b9dcd3; border-radius:999px; background:#e2f3ee; color:#42766f; font-size:11px; font-weight:700; }
+    .project-channel-chip button { width:16px; height:16px; padding:0!important; border:0!important; border-radius:50%!important; background:transparent!important; color:#19b9aa; box-shadow:none!important; font-size:14px; line-height:14px; }
+    .project-channel-entry { display:flex; gap:7px; }
+    .project-channel-entry input { min-width:0; flex:1; }
+    .project-channel-entry button { white-space:nowrap; }
+    .project-card-channels { margin-top:6px; }
+    .project-card-channels .project-channel-chip { padding:3px 7px; box-shadow:none; }
     .material-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f7faf9; }
     .material-manager-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
     .material-manager-head h3 { margin: 0; font-size: 15px; }
@@ -289,7 +305,15 @@
 
     .schedule-row { min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
     .schedule-row-summary { display: none; cursor: pointer; }
-    .schedule-row-fields { display: grid; grid-template-columns: 120px 150px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
+    .schedule-row-fields { display: grid; grid-template-columns: 120px 180px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
+    .task-material-picker { position:relative; min-width:0; }
+    .task-material-picker > summary { min-height:42px; padding:10px 30px 10px 12px; border:2px solid #c4b89e; border-radius:14px; background:#f9f6e9; color:#725d42; box-shadow:0 3px 0 #d4c9b4; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; list-style:none; }
+    .task-material-picker > summary::-webkit-details-marker { display:none; }
+    .task-material-picker > summary::after { content:"⌄"; position:absolute; top:11px; right:11px; color:#8a7b66; }
+    .task-material-picker[open] > summary { border-color:#efc94c; box-shadow:0 3px 0 #d9aa28,0 0 0 3px rgba(239,201,76,.16); }
+    .task-material-menu { position:absolute; z-index:310; top:calc(100% + 7px); left:0; width:max(100%,260px); max-height:280px; padding:8px; border:2px solid #d4c9b4; border-radius:16px; background:#fffdf7; box-shadow:0 12px 28px rgba(61,52,40,.18); overflow:auto; }
+    .task-material-option { display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:11px; color:#725d42; font-size:12px; font-weight:700; cursor:pointer; }
+    .task-material-option:hover { background:#e2f3ee; }
     .app.project-focus .project-create, .app.project-focus #newMaterialProject, .app.project-focus [data-material-field="project"], .app.project-focus [data-task-field="project"], .app.project-focus #resetSchedule { display: none; }
     .app.project-focus .material-create { grid-template-columns: minmax(170px,1fr) 115px minmax(120px,.7fr) minmax(120px,.7fr) 110px auto; }
     .app.project-focus .material-manager-item { grid-template-columns: minmax(150px,1fr) 110px minmax(120px,.7fr) minmax(120px,.7fr) 110px minmax(150px,1fr) auto; }
@@ -801,7 +825,51 @@
     @media (max-width:560px) {
       .island-select-trigger { min-height:42px; padding:0 14px; }
       .island-select-menu { border-radius:18px; }
-    }  </style>
+    }
+    .choices { width:100%; min-width:0; margin:0; color:#725d42; }
+    .choices__inner { position:relative; min-height:42px; padding:5px 10px 2px !important; border:2px solid #c4b89e !important; border-radius:16px !important; background:#f9f6e9 !important; box-shadow:0 3px 0 #d4c9b4; font-size:13px; }
+    .is-focused .choices__inner, .is-open .choices__inner { border-color:#efc94c !important; box-shadow:0 3px 0 #d9aa28,0 0 0 3px rgba(239,201,76,.18); }
+    .choices__list--multiple { display:flex; flex-wrap:wrap; align-items:center; }
+    .choices__list--multiple .choices__item { display:inline-flex; align-items:center; max-width:100%; margin:2px 5px 5px 0; padding:5px 7px 5px 10px; border:1px solid #b9dcd3; border-radius:999px; background:#e2f3ee; color:#42766f; box-shadow:0 3px 0 #a9c6bf; font-weight:700; line-height:1.25; word-break:break-word; }
+    .choices__list--multiple .choices__item.is-highlighted { border-color:#91c9bd; background:#d2ebe5; color:#32665f; box-shadow:0 3px 0 #8eb3ab; }
+    .choices__list--multiple:not(:empty) + .choices__input::placeholder { color:transparent !important; opacity:0 !important; }
+    .choices:not(.is-open) .choices__list--multiple:not(:empty) + .choices__input { position:absolute; width:0 !important; min-width:0 !important; height:0; margin:0 !important; padding:0 !important; opacity:0; pointer-events:none; }
+    .choices__list--multiple .choices__item .choices__button { position:relative; display:inline-block; flex:0 0 16px; width:16px; height:16px; margin:0 0 0 5px; padding:0 !important; border:0 !important; border-radius:50% !important; background:transparent !important; background-image:none !important; box-shadow:none !important; opacity:1 !important; filter:none !important; font-size:0; line-height:0; text-indent:-9999px; transform:translateY(-1px); }
+    .choices__list--multiple .choices__item .choices__button::before, .choices__list--multiple .choices__item .choices__button::after { content:""; position:absolute; top:50%; left:50%; width:9px; height:2px; border-radius:2px; background:#19b9aa; box-shadow:none; transform-origin:center; }
+    .choices__list--multiple .choices__item .choices__button::before { transform:translate(-50%,-50%) rotate(45deg); }
+    .choices__list--multiple .choices__item .choices__button::after { transform:translate(-50%,-50%) rotate(-45deg); }
+    .choices__list--multiple .choices__item .choices__button:hover, .choices__list--multiple .choices__item .choices__button:focus { background:rgba(255,255,255,.38) !important; box-shadow:0 0 0 2px rgba(80,145,136,.12) !important; }
+    .choices__input { min-width:90px !important; margin:2px 0 !important; padding:5px 4px !important; border:0 !important; background:transparent !important; box-shadow:none !important; }
+    .choices__list--dropdown, .choices__list[aria-expanded] { z-index:260; margin-top:7px; border:2px solid #d4c9b4; border-radius:16px; background:#fffdf7; box-shadow:0 12px 28px rgba(61,52,40,.18); overflow:hidden; }
+    .choices__list--dropdown .choices__item--selectable.is-highlighted, .choices__list[aria-expanded] .choices__item--selectable.is-highlighted { background:#fff0bd; color:#725d42; }
+    .weekly-project-choice-wrap { display:grid; gap:8px; min-width:0; }
+    .weekly-custom-projects { display:flex; flex-wrap:wrap; gap:6px; }
+    .weekly-custom-projects button { padding:5px 9px; font-size:11px; }
+    .kanban-panel { min-width:0; padding:16px; overflow-x:auto; overscroll-behavior-x:contain; }
+    .kanban-help { margin-bottom:12px; color:var(--muted); font-size:12px; }
+    #kanbanBoard { min-width:max-content; }
+    #kanbanBoard .kanban-container { align-items:flex-start; }
+    #kanbanBoard .kanban-board { border:1px solid rgba(159,146,125,.52); border-radius:20px; background:#f3eddf; box-shadow:0 5px 0 #d4c9b4,0 12px 24px rgba(61,52,40,.1); overflow:hidden; }
+    #kanbanBoard .kanban-board-header { padding:12px 14px; border-bottom:1px solid rgba(159,146,125,.38); background:#fff8e9; color:#725d42; font-weight:800; }
+    #kanbanBoard .kanban-board[data-id="not_started"] .kanban-board-header { background:#efece4; }
+    #kanbanBoard .kanban-board[data-id="production"] .kanban-board-header { background:#ddf5f1; }
+    #kanbanBoard .kanban-board[data-id="pending_submit"] .kanban-board-header { background:#fff0bd; }
+    #kanbanBoard .kanban-board[data-id="pending_feedback"] .kanban-board-header { background:#e8edfb; }
+    #kanbanBoard .kanban-board[data-id="revision"] .kanban-board-header { background:#f9e8f3; }
+    #kanbanBoard .kanban-board[data-id="completed"] .kanban-board-header { background:#e5f3dc; }
+    #kanbanBoard .kanban-drag { min-height:90px; padding:10px; }
+    #kanbanBoard .kanban-item { margin-bottom:10px; padding:11px; border:1px solid rgba(159,146,125,.48); border-radius:14px; background:#fffdf7; color:#725d42; box-shadow:0 3px 0 #d8cdb8; cursor:grab; }
+    #kanbanBoard .kanban-item:active { cursor:grabbing; }
+    .kanban-card { display:grid; gap:6px; }
+    .kanban-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+    .kanban-card-name { font-weight:800; overflow-wrap:anywhere; }
+    .kanban-card-project { display:inline-flex; max-width:145px; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kanban-card-meta { color:#8a7b66; font-size:11px; line-height:1.45; overflow-wrap:anywhere; }
+    .kanban-card-risk { color:#b55252; }
+    .workspace.kanban-mode { grid-template-columns:minmax(0,1fr); }
+    .workspace.kanban-mode .detail { display:none; }
+    @media (max-width:560px) { .kanban-panel{padding:10px} #kanbanBoard .kanban-board{width:250px!important} }
+  </style>
 </head>
 <body>
   <main class="app" id="appRoot">
@@ -820,6 +888,7 @@
         <div class="tabs" aria-label="视图切换">
           <button type="button" data-view="calendar">日历</button>
           <button type="button" class="active" data-view="overview">项目总览</button>
+          <button type="button" data-view="kanban">素材看板</button>
           <button type="button" data-view="gantt">甘特图</button>
           <button type="button" data-view="duration">耗时统计</button>
           <button type="button" data-view="manage">项目管理</button>
@@ -907,6 +976,7 @@
           </section>
         </div>
         <div id="calendarPanel" class="calendar-wrap" hidden><div id="calendar" class="calendar"></div></div>
+        <div id="kanbanPanel" class="kanban-panel" hidden><div class="kanban-help">拖动素材卡片可更新制作状态；点击卡片可进入对应项目的素材编辑区。</div><div id="kanbanBoard" aria-label="素材状态看板"></div></div>
         <div id="ganttPanel" class="gantt-wrap" hidden><div id="gantt" class="gantt"></div></div>
         <div id="durationPanel" class="duration-panel" hidden>
           <div class="duration-stats" aria-label="节点耗时概览">
@@ -943,6 +1013,7 @@
               <input id="newProjectName" type="text" maxlength="40" placeholder="输入新项目名称">
               <input id="newProjectOwner" type="text" maxlength="120" data-person-combobox="owner" placeholder="负责人（可多选或输入）">
               <input id="newProjectContact" type="text" maxlength="120" data-person-combobox="contact" placeholder="客户对接人（可多选或输入）">
+              <input id="newProjectChannels" type="text" maxlength="200" placeholder="投放渠道（可多选，用顿号分隔）">
               <select id="newProjectStatus" aria-label="新项目状态"><option value="auto" selected>自动判断</option><option value="paused">已暂停</option></select>
               <select id="newProjectPriority" aria-label="新项目优先级"><option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option></select>
 
@@ -955,7 +1026,7 @@
             <div class="material-create">
               <select id="newMaterialProject" aria-label="所属项目"></select>
               <input id="newMaterialName" type="text" maxlength="50" placeholder="子素材名称">
-              <select id="newMaterialType" aria-label="素材类型"><option value="unclassified" selected>未分类</option><option value="twoD">2D</option><option value="threeD">3D</option><option value="twoDIteration">2D迭代</option><option value="threeDIteration">3D迭代</option></select>
+              <select id="newMaterialType" aria-label="素材类型"><option value="unclassified" selected>未分类</option><option value="twoD">2D</option><option value="threeD">3D</option><option value="twoDIteration">2D迭代</option><option value="threeDIteration">3D迭代</option><option value="videoToPlayable">视频转试玩</option></select>
               <input id="newMaterialOwner" type="text" maxlength="120" data-person-combobox="owner" placeholder="负责人（默认继承项目，可多选）">
               <input id="newMaterialContact" type="text" maxlength="120" data-person-combobox="contact" placeholder="客户对接人（默认继承项目，可多选）">
               <select id="newMaterialStatus" aria-label="子素材状态"><option value="not_started">未开始</option><option value="production">制作中</option><option value="pending_submit">待提交</option><option value="pending_feedback">待反馈</option><option value="revision">修改中</option><option value="completed">已完成</option></select>
@@ -1021,6 +1092,8 @@
     </section>
   </main>
 
+  <script src="vendor/choices/choices.min.js"></script>
+  <script src="vendor/jkanban/jkanban.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const now=new Date(), TODAY=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -1442,8 +1515,8 @@
     let cloudClient=null,cloudChannel=null,cloudReady=false,cloudApplying=false,cloudSaveTimer=0,lastCloudVersion=0,lastIssuedVersion=0;
     let cloudSnapshots=[],cloudHistoryLoading=false,cloudHistoryExpanded=false;
     function normalizeTask(task,index,prefix="saved"){
-      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),materialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),{direction,...base}=task;
-      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialId,submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",updatedAt:task.updatedAt||""};
+      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),legacyMaterialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),rawMaterialIds=Array.isArray(task.materialIds)?task.materialIds:(legacyMaterialId?[legacyMaterialId]:[]),materialIds=[...new Set(rawMaterialIds.map(value=>String(value||"").trim()).filter(Boolean))],{direction,materialId:ignoredMaterialId,materialIds:ignoredMaterialIds,...base}=task;
+      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialIds,materialId:materialIds[0]||"",submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",updatedAt:task.updatedAt||""};
     }
     function classifySpecialTask(task){const label=`${task.name||""} ${task.note||""}`;if(task.type==="supervision"||/监修/.test(label))return{...task,type:"supervision",submit:false};if(task.type==="acceptance"||/验收/.test(label))return{...task,type:"acceptance",submit:false};if(task.type==="packaging"||/打包/.test(label))return{...task,type:"packaging",submit:false};return task}
     function cloneDefaultTasks(){return defaultTasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"schedule")))}
@@ -1463,15 +1536,16 @@
     }
     const emptyProjectDemand=()=>({twoD:0,threeD:0,twoDIteration:0,threeDIteration:0});
     function normalizeProjectDemand(value){const source=value&&typeof value==="object"?value:{},count=key=>Math.max(0,Math.min(9999,Math.round(Number(source[key])||0)));return{twoD:count("twoD"),threeD:count("threeD"),twoDIteration:count("twoDIteration"),threeDIteration:count("threeDIteration")}}
-    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,demand:normalizeProjectDemand(project.demand)}))}
+    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,channels:channelSelectionList(project.channels),demand:normalizeProjectDemand(project.demand)}))}
     function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
     const personSelectionList=value=>[...new Set(String(value||"").split(/[、,，;；\n]+/).map(item=>item.trim()).filter(Boolean))];
     const normalizePersonSelection=value=>personSelectionList(value).join("、");
     const normalizePersonList=values=>[...new Set((Array.isArray(values)?values:[]).flatMap(personSelectionList))].sort((a,b)=>a.localeCompare(b,"zh-CN"));
+    const channelSelectionList=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(item=>String(item||"").trim()).filter(Boolean))];
     function normalizeProjects(items,taskList=[]){
       const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
-      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:normalizePersonSelection(project.owner),contact:normalizePersonSelection(project.contact),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived),demand:normalizeProjectDemand(project.demand)})});
-      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",contact:"",status:"active",priority:"medium",archived:false,demand:emptyProjectDemand()})}});
+      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:normalizePersonSelection(project.owner),contact:normalizePersonSelection(project.contact),channels:channelSelectionList(project.channels),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived),demand:normalizeProjectDemand(project.demand)})});
+      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",contact:"",channels:[],status:"active",priority:"medium",archived:false,demand:emptyProjectDemand()})}});
       return result.length?result:cloneDefaultProjects();
     }
     function loadProjects(taskList){
@@ -1481,7 +1555,7 @@
     let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
     let projects=loadProjects(tasks);
     const materialStatusNames={not_started:"未开始",production:"制作中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
-    const materialAssetTypeNames={unclassified:"未分类",twoD:"2D",threeD:"3D",twoDIteration:"2D迭代",threeDIteration:"3D迭代"};
+    const materialAssetTypeNames={unclassified:"未分类",twoD:"2D",threeD:"3D",twoDIteration:"2D迭代",threeDIteration:"3D迭代",videoToPlayable:"视频转试玩"};
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
@@ -1510,13 +1584,16 @@
     function ensureTaskLinkedMaterials(materialList,projectList,taskList){
       const known=new Map(materialList.map(item=>[item.id,item]));
       taskList.forEach(task=>{
-        if(!task.materialId)return;
-        const existing=known.get(task.materialId);
-        if(existing?.project===task.project)return;
-        const match=task.project==="s3g"?task.materialId.match(/^material-s3g-direction-(\d+)$/):null;
-        if(!match){task.materialId="";return}
-        const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:task.materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,assetType:"unclassified",owner:project?.owner||"",contact:project?.contact||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
-        materialList.push(material);known.set(material.id,material);
+        const valid=[];
+        (Array.isArray(task.materialIds)?task.materialIds:(task.materialId?[task.materialId]:[])).forEach(materialId=>{
+          const existing=known.get(materialId);
+          if(existing?.project===task.project){valid.push(materialId);return}
+          const match=task.project==="s3g"?materialId.match(/^material-s3g-direction-(\d+)$/):null;
+          if(!match)return;
+          const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,assetType:"unclassified",owner:project?.owner||"",contact:project?.contact||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
+          materialList.push(material);known.set(material.id,material);valid.push(materialId);
+        });
+        task.materialIds=[...new Set(valid)];task.materialId=task.materialIds[0]||"";
       });
       return materialList;
     }
@@ -1711,7 +1788,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:14,projects:projects.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:15,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1783,7 +1860,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined)||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<14||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined)||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds))||Number(data.payload.schemaVersion||0)<15||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -1818,7 +1895,7 @@
     function projectSearchMatches(project){
       if(!searchFilter)return true;
       const token=searchFilter.toLowerCase();
-      return project.name.toLowerCase().includes(token)||(project.owner||"").toLowerCase().includes(token)||(project.contact||"").toLowerCase().includes(token);
+      return project.name.toLowerCase().includes(token)||(project.owner||"").toLowerCase().includes(token)||(project.contact||"").toLowerCase().includes(token)||channelSelectionList(project.channels).join(" ").toLowerCase().includes(token);
     }
     function projectContainsSearch(project){
       if(!searchFilter)return true;
@@ -1873,7 +1950,8 @@
     const projectStatusNames={planning:"筹备中",active:"进行中",paused:"已暂停",completed:"已完成"};
     const projectPriorityNames={high:"高",medium:"中",low:"低"};
     const materialById=id=>materials.find(item=>item.id===id);
-    const projectLabel=t=>{const material=materialById(t.materialId);return material?.project===t.project?`${projectName(t.project)}·${material.name}`:projectName(t.project)};
+    const taskMaterialIds=task=>[...new Set((Array.isArray(task?.materialIds)?task.materialIds:(task?.materialId?[task.materialId]:[])).filter(id=>materials.some(item=>item.id===id&&item.project===task.project)))];
+    const projectLabel=t=>{const names=taskMaterialIds(t).map(id=>materialById(id)?.name).filter(Boolean);return names.length?`${projectName(t.project)}·${names.join("、")}`:projectName(t.project)};
     const calendarTaskLabel=t=>`${projectLabel(t)} · ${t.note} · ${t.name}`;
     const framedProjectLabel=t=>{const label=projectLabel(t);return label.startsWith("【")?label:`【${label}】`};
     const projectTint=id=>{const hex=projectColor(id).slice(1),r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return`rgba(${r},${g},${b},.13)`};
@@ -1904,7 +1982,7 @@
     function placeTask(task,targetStart,copy=false){
       const range=shiftedRange(task,targetStart);
       if(copy){
-        const clone={...task,...range,actualEnd:"",status:"not_started",updatedAt:new Date().toISOString(),id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${task.name}（副本）`};
+        const clone={...task,materialIds:[...taskMaterialIds(task)],...range,actualEnd:"",status:"not_started",updatedAt:new Date().toISOString(),id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${task.name}（副本）`};
         tasks.push(clone);
       } else Object.assign(task,range,{updatedAt:new Date().toISOString()});
       saveScheduleTasks();render();showDetail(parse(targetStart));
@@ -1917,8 +1995,8 @@
         const defaultNotes={milestone:"提交",production:"制作",supervision:"监修",acceptance:"验收",packaging:"打包",revision:"修改"};
         if(!task.note||["制作","提交","确认","监修","验收","打包","修改"].includes(task.note))task.note=defaultNotes[value]||"制作";
       } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
-      else if(field==="project"){task.project=value;task.materialId=""}
-      else if(field==="materialId")task.materialId=materials.some(item=>item.id===value&&item.project===task.project)?value:"";
+      else if(field==="project"){task.project=value;task.materialIds=[];task.materialId=""}
+      else if(field==="materialIds"){task.materialIds=[...new Set((Array.isArray(value)?value:[]).filter(id=>materials.some(item=>item.id===id&&item.project===task.project)))];task.materialId=task.materialIds[0]||""}
       else task[field]=value;
       if(field==="actualEnd"){
         if(value)task.status="completed";
@@ -1938,8 +2016,8 @@
       scheduleCloudSave();
     }
     const materialsForProject=projectId=>materials.filter(item=>item.project===projectId);
-    const materialsForTask=task=>{const list=materialsForProject(task.project);return task.materialId?list.filter(item=>item.id===task.materialId):list};
-    const taskAppliesToMaterial=(task,material)=>task.project===material.project&&(!task.materialId||task.materialId===material.id);
+    const materialsForTask=task=>{const list=materialsForProject(task.project),ids=taskMaterialIds(task);return ids.length?list.filter(item=>ids.includes(item.id)):list};
+    const taskAppliesToMaterial=(task,material)=>{const ids=taskMaterialIds(task);return task.project===material.project&&(!ids.length||ids.includes(material.id))};
     const isMaterialTaskComplete=(material,task)=>!material.incompleteTaskIds.includes(task.id);
     function materialTaskProgress(task){
       const list=materialsForTask(task),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
@@ -1994,6 +2072,7 @@
       const owner=el("newMaterialOwner"),contact=el("newMaterialContact");
       if(force||!owner.value.trim())owner.value=project.owner||"";
       if(force||!contact.value.trim())contact.value=project.contact||"";
+      window.syncPersonChoices?.(owner);window.syncPersonChoices?.(contact);
     }
     function renderMaterialManager(){
       const focused=projectById(focusedProjectId),managerMaterials=focused?materialsForProject(focused.id):materials;
@@ -2005,10 +2084,10 @@
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,rawValue=control.value.trim(),value=["owner","contact"].includes(field)?normalizePersonSelection(rawValue):rawValue;
-        if(field==="project"){tasks.forEach(task=>{if(task.materialId===material.id)task.materialId=""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else material[field]=value;
+        if(field==="project"){tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else material[field]=value;
         material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY));
       }));
-      document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？关联节点将改为全部子素材。`))return;tasks.forEach(task=>{if(task.materialId===material.id)task.materialId=""});materials=materials.filter(item=>item.id!==material.id);saveScheduleTasks();saveMaterials();render();showDetail(parse(TODAY))}));
+      document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？关联节点会自动移除该素材。`))return;tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});materials=materials.filter(item=>item.id!==material.id);saveScheduleTasks();saveMaterials();render();showDetail(parse(TODAY))}));
     }
     function addMaterial(){
       const name=el("newMaterialName").value.trim(),project=el("newMaterialProject").value;
@@ -2016,10 +2095,13 @@
       if(!projectById(project))return alert("请先选择所属项目。");
       const parent=projectById(project);
       materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,owner:normalizePersonSelection(el("newMaterialOwner").value)||parent?.owner||"",contact:normalizePersonSelection(el("newMaterialContact").value)||parent?.contact||"",status:el("newMaterialStatus").value,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
-      el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialStatus").value="not_started";el("newMaterialOwner").value=parent?.owner||"";el("newMaterialContact").value=parent?.contact||"";saveMaterials();render();
+      el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialStatus").value="not_started";el("newMaterialOwner").value=parent?.owner||"";el("newMaterialContact").value=parent?.contact||"";window.syncPersonChoices?.(el("newMaterialOwner"));window.syncPersonChoices?.(el("newMaterialContact"));saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
-    function taskMaterialOptions(task){const list=materialsForProject(task.project);return`<option value="">${list.length?"全部子素材":"项目通用节点"}</option>${list.map(material=>`<option value="${escapeHtml(material.id)}" ${task.materialId===material.id?"selected":""}>${escapeHtml(material.name)}</option>`).join("")}`}
+    function taskMaterialSummary(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),names=list.filter(item=>selected.has(item.id)).map(item=>item.name);return!list.length?"项目通用节点":!selected.size?"全部子素材":names.length>2?`${names.slice(0,2).join("、")} +${names.length-2}`:names.join("、")}
+    function taskMaterialPickerMarkup(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),summary=taskMaterialSummary(task);return`<details class="task-material-picker"><summary title="${escapeHtml(summary)}">${escapeHtml(summary)}</summary><div class="task-material-menu"><label class="task-material-option"><input type="checkbox" class="task-material-all" ${selected.size?"":"checked"}>全部子素材</label>${list.map(material=>`<label class="task-material-option"><input type="checkbox" class="task-material-check" value="${escapeHtml(material.id)}" ${selected.has(material.id)?"checked":""}>${escapeHtml(material.name)}</label>`).join("")}</div></details>`}
+    const projectChannelChipsMarkup=(project,editable=false)=>channelSelectionList(project.channels).map(channel=>`<span class="project-channel-chip">${escapeHtml(channel)}${editable?`<button type="button" class="remove-project-channel" data-channel="${escapeHtml(channel)}" aria-label="移除${escapeHtml(channel)}">×</button>`:""}</span>`).join("");
+    function projectChannelEditorMarkup(project){return`<div class="project-channel-editor"><strong>投放渠道</strong><div class="project-channel-body"><div class="project-channel-tags">${projectChannelChipsMarkup(project,true)||'<span class="project-manager-count">暂未填写</span>'}</div><div class="project-channel-entry"><input type="text" maxlength="60" placeholder="输入渠道，如 Moloco、Meta、Google"><button type="button" class="add-project-channel">＋ 添加渠道</button></div></div></div>`}
     function renderProjectControls(){
       const focused=projectById(focusedProjectId),managerProjects=focused?[focused]:projects;
       const filter=el("projectFilter");
@@ -2030,12 +2112,17 @@
       el("projectPriorityFilter").value=projectPriorityFilter;
       el("projectLegend").innerHTML=managerProjects.filter(project=>showArchived||!project.archived||project.id===focusedProjectId).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
       el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,materialCount=materialsForProject(project.id).length,automaticStatus=scheduledProjectStatus(project),demand=normalizeProjectDemand(project.demand);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" data-person-combobox="owner" maxlength="120" value="${escapeHtml(project.owner)}" placeholder="负责人（可多选）"><input type="text" class="project-contact-input" data-person-combobox="contact" maxlength="120" value="${escapeHtml(project.contact)}" placeholder="客户对接人（可多选）"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialCount} 素材</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span><div class="project-demand-editor"><span class="project-demand-label">素材需求量</span><label class="project-demand-field">2D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoD" value="${demand.twoD}" aria-label="2D需求量"></label><label class="project-demand-field">3D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeD" value="${demand.threeD}" aria-label="3D需求量"></label><label class="project-demand-field">2D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoDIteration" value="${demand.twoDIteration}" aria-label="2D迭代需求量"></label><label class="project-demand-field">3D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeDIteration" value="${demand.threeDIteration}" aria-label="3D迭代需求量"></label></div></div>`}).join("");
+      document.querySelectorAll(".project-manager-item").forEach(card=>{const project=projectById(card.dataset.projectId);if(project)card.insertAdjacentHTML("beforeend",projectChannelEditorMarkup(project))});
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=normalizePersonSelection(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-contact-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.contact=normalizePersonSelection(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value==="paused"?"paused":scheduledProjectStatus(project);saveProjects();render()}));
       document.querySelectorAll(".project-priority-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.priority=input.value;saveProjects();render()}));
       document.querySelectorAll("[data-demand-field]").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.demand=normalizeProjectDemand({...project.demand,[input.dataset.demandField]:input.value});saveProjects();render()}));
+      const addProjectChannel=editor=>{const project=projectById(editor.closest(".project-manager-item").dataset.projectId),input=editor.querySelector("input"),values=channelSelectionList(input.value);if(!project||!values.length){input.focus();return}project.channels=[...new Set([...channelSelectionList(project.channels),...values])];saveProjects();render()};
+      document.querySelectorAll(".add-project-channel").forEach(button=>button.addEventListener("click",()=>addProjectChannel(button.closest(".project-channel-entry"))));
+      document.querySelectorAll(".project-channel-entry input").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addProjectChannel(input.closest(".project-channel-entry"))}}));
+      document.querySelectorAll(".remove-project-channel").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.channels=channelSelectionList(project.channels).filter(channel=>channel!==button.dataset.channel);saveProjects();render()}));
 
       document.querySelectorAll(".archive-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;project.archived=!project.archived;if(project.archived&&projectFilter===project.id)projectFilter="all";weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
       document.querySelectorAll(".rename-project").forEach(button=>button.addEventListener("click",()=>{const project=projectById(button.closest(".project-manager-item").dataset.projectId);if(!project)return;const next=prompt("输入新的项目名称",project.name)?.trim();if(!next||next===project.name)return;if(projects.some(item=>item.id!==project.id&&item.name.toLowerCase()===next.toLowerCase()))return alert("项目名称已存在。");const previous=project.name;project.name=next;weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveProjects();saveWeeklyProjects();renderWeeklyEditors();render()}));
@@ -2045,17 +2132,17 @@
       const input=el("newProjectName"),name=input.value.trim();
       if(!name){input.focus();return}
       if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
-      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:normalizePersonSelection(el("newProjectOwner").value),contact:normalizePersonSelection(el("newProjectContact").value),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false,demand:emptyProjectDemand()};
+      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:normalizePersonSelection(el("newProjectOwner").value),contact:normalizePersonSelection(el("newProjectContact").value),channels:channelSelectionList(el("newProjectChannels").value),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false,demand:emptyProjectDemand()};
       projects.push(project);
       weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors()
-      input.value="";el("newProjectOwner").value="";el("newProjectContact").value="";el("newProjectStatus").value="auto";el("newProjectPriority").value="medium";saveProjects();enterProjectWorkspace(project.id);
+      input.value="";el("newProjectOwner").value="";el("newProjectContact").value="";el("newProjectChannels").value="";window.syncPersonChoices?.(el("newProjectOwner"));window.syncPersonChoices?.(el("newProjectContact"));el("newProjectStatus").value="auto";el("newProjectPriority").value="medium";saveProjects();enterProjectWorkspace(project.id);
     }
     function renderScheduleEditors(){
       renderMaterialNodeBoard();
       const focusedMaterial=scheduleMaterialFocusId?materialById(scheduleMaterialFocusId):null;
       const list=visibleTasks().filter(task=>!focusedMaterial||taskAppliesToMaterial(task,focusedMaterial));
       const compact=window.matchMedia("(max-width: 560px)").matches;
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select><select data-task-field="materialId" aria-label="适用子素材" title="该节点适用于全部子素材或指定的一条子素材">${taskMaterialOptions(task)}</select><input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
@@ -2064,6 +2151,7 @@
       document.querySelectorAll('[data-task-field="name"],[data-task-field="note"]').forEach(control=>control.addEventListener("input",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(task)updateTask(task,control.dataset.taskField,control.value);
       }));
+      document.querySelectorAll(".task-material-picker input").forEach(input=>input.addEventListener("change",()=>{const row=input.closest(".schedule-row"),task=tasks.find(item=>item.id===row.dataset.taskId);if(!task)return;const picker=input.closest(".task-material-picker"),all=picker.querySelector(".task-material-all");if(input.classList.contains("task-material-all")&&input.checked)picker.querySelectorAll(".task-material-check").forEach(item=>item.checked=false);else all.checked=false;const ids=all.checked?[]:[...picker.querySelectorAll(".task-material-check:checked")].map(item=>item.value);updateTask(task,"materialIds",ids);const summary=taskMaterialSummary(task),node=picker.querySelector("summary");node.textContent=summary;node.title=summary}));
       document.querySelectorAll(".delete-schedule-task").forEach(button=>button.addEventListener("click",()=>{
         const row=button.closest(".schedule-row"),task=tasks.find(item=>item.id===row.dataset.taskId);if(!task)return;
         if(!confirm(`确认删除“${task.name}”吗？`))return;
@@ -2071,7 +2159,7 @@
       }));
       document.querySelectorAll(".duplicate-schedule-task").forEach(button=>button.addEventListener("click",()=>{
         const row=button.closest(".schedule-row"),source=tasks.find(item=>item.id===row.dataset.taskId);if(!source)return;
-        const copy={...source,actualEnd:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${source.name}（副本）`};
+        const copy={...source,materialIds:[...taskMaterialIds(source)],actualEnd:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${source.name}（副本）`};
         tasks.push(copy);saveScheduleTasks();renderScheduleEditors();updateSummary();renderCalendar();renderGantt();renderDuration();
         const copiedRow=document.querySelector(`[data-task-id="${copy.id}"]`);
         copiedRow?.scrollIntoView({block:"center",behavior:"smooth"});
@@ -2157,13 +2245,12 @@
     function formatFullDate(value){if(!value)return"未标注日期";const date=parse(value);return`${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())}`}
     function historySort(a,b){return (b.end||b.savedAt||"").localeCompare(a.end||a.savedAt||"")||(b.savedAt||"").localeCompare(a.savedAt||"")}
     function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]))}
+    let weeklyChoiceInstances=[];
     function weeklyProjectPickerMarkup(summary,key,entryIndex=-1){
-      const entry=entryIndex>=0?weeklyProjects[entryIndex]:null,groupIds=new Set(entry?[entry.projectId,...entry.sharedProjectIds]:[]);
-      const options=weeklyProjects.length?weeklyProjects.map((item,index)=>{
-        const checked=entry?groupIds.has(item.projectId):weeklyItemIncluded(item),locked=Boolean(entry&&item.projectId===entry.projectId),archived=!item.custom&&projectById(item.projectId)?.archived;
-        return `<div class="weekly-project-option"><input id="weekly-project-${key}-${index}" class="weekly-project-check" type="checkbox" data-index="${index}" ${checked?"checked":""} ${locked?"disabled":""}><label for="weekly-project-${key}-${index}">${escapeHtml(item.name)}${archived?'<span class="archive-help"> · 已归档</span>':""}${item.custom?'<span class="archive-help"> · 自定义</span>':""}</label>${item.custom?`<button type="button" class="remove-weekly-custom ghost-danger" data-index="${index}" aria-label="删除自定义项目${escapeHtml(item.name)}">删除</button>`:"<span></span>"}</div>`;
-      }).join(""):'<div class="weekly-project-empty">暂无可选项目，可在下方添加自定义项目。</div>';
-      return `<details class="weekly-project-picker" data-picker-key="${escapeHtml(key)}" data-entry-index="${entryIndex}"><summary>${escapeHtml(summary)}</summary><div class="weekly-project-menu"><div class="weekly-project-options">${options}</div><div class="weekly-project-custom"><input class="custom-weekly-project-name" type="text" maxlength="50" placeholder="输入自定义项目名称"><button type="button" class="add-custom-weekly-project">＋ 添加</button></div></div></details>`;
+      const entry=entryIndex>=0?weeklyProjects[entryIndex]:null,groupIds=new Set(entry?[entry.projectId,...entry.sharedProjectIds]:weeklyProjects.filter(weeklyItemIncluded).map(item=>item.projectId));
+      const options=weeklyProjects.map(item=>{const archived=!item.custom&&projectById(item.projectId)?.archived,locked=Boolean(entry&&item.projectId===entry.projectId),label=`${item.name}${archived?" · 已归档":""}${item.custom?" · 自定义":""}`;return`<option value="${escapeHtml(item.projectId)}" ${groupIds.has(item.projectId)?"selected":""} ${locked?"disabled":""}>${escapeHtml(label)}</option>`}).join("");
+      const customItems=entryIndex<0?weeklyProjects.map((item,index)=>item.custom?`<button type="button" class="remove-weekly-custom ghost-danger" data-index="${index}">删除 ${escapeHtml(item.name)}</button>`:"").join(""):"";
+      return `<div class="weekly-project-choice-wrap" data-picker-key="${escapeHtml(key)}" data-entry-index="${entryIndex}"><select class="weekly-project-choice" data-choices-managed="weekly" data-placeholder="${escapeHtml(summary)}" multiple>${options}</select>${customItems?`<div class="weekly-custom-projects">${customItems}</div>`:""}${entryIndex<0?`<div class="weekly-project-custom"><input class="custom-weekly-project-name" type="text" maxlength="50" placeholder="输入自定义项目名称"><button type="button" class="add-custom-weekly-project">＋ 添加</button></div>`:""}</div>`;
     }
     function syncWeeklyProjects(){
       document.querySelectorAll(".project-editor").forEach(card=>{
@@ -2183,7 +2270,7 @@
     }
     function addCustomWeeklyProject(input){
       syncWeeklyProjects();
-      const name=input.value.trim(),picker=input.closest(".weekly-project-picker"),entryIndex=Number(picker?.dataset.entryIndex??-1);
+      const name=input.value.trim(),picker=input.closest(".weekly-project-choice-wrap"),entryIndex=Number(picker?.dataset.entryIndex??-1);
       if(!name)return input.focus();
       if(weeklyProjects.some(item=>item.name.trim().toLowerCase()===name.toLowerCase()))return alert("该项目已经在周报项目列表中。");
       const parent=entryIndex>=0?weeklyProjects[entryIndex]:null,item={projectId:`custom-weekly-${Date.now()}`,name,progress:"",next:"",risk:"",selected:!parent,custom:true,sharedProjectIds:[],sharedParentId:parent?.projectId||""};
@@ -2194,38 +2281,25 @@
       renderWeeklyEditors();
       generateWeeklyReport();
     }
+    function applyWeeklyProjectSelection(entryIndex,target,checked){
+      if(entryIndex>=0){
+        const parent=weeklyProjects[entryIndex];if(!parent||target.projectId===parent.projectId)return;
+        if(checked){const moving=[target,...target.sharedProjectIds.map(weeklyItemByProjectId).filter(Boolean)];target.sharedProjectIds=[];moving.forEach(item=>{if(item.projectId===parent.projectId)return;detachWeeklyItem(item);item.selected=false;item.sharedParentId=parent.projectId;if(!parent.sharedProjectIds.includes(item.projectId))parent.sharedProjectIds.push(item.projectId)})}
+        else{parent.sharedProjectIds=parent.sharedProjectIds.filter(id=>id!==target.projectId);target.sharedParentId="";target.selected=true}
+      }else if(checked){detachWeeklyItem(target);target.selected=true}
+      else{if(target.sharedParentId)detachWeeklyItem(target);target.selected=false}
+    }
     function bindWeeklyProjectPickers(){
-      document.querySelectorAll(".weekly-project-check").forEach(checkbox=>checkbox.addEventListener("change",()=>{
-        syncWeeklyProjects();
-        const picker=checkbox.closest(".weekly-project-picker"),entryIndex=Number(picker?.dataset.entryIndex??-1),target=weeklyProjects[Number(checkbox.dataset.index)];
-        if(!target)return;
-        if(entryIndex>=0){
-          const parent=weeklyProjects[entryIndex];
-          if(!parent||target.projectId===parent.projectId)return;
-          if(checkbox.checked){
-            const moving=[target,...target.sharedProjectIds.map(weeklyItemByProjectId).filter(Boolean)];
-            target.sharedProjectIds=[];
-            moving.forEach(item=>{if(item.projectId===parent.projectId)return;detachWeeklyItem(item);item.selected=false;item.sharedParentId=parent.projectId;if(!parent.sharedProjectIds.includes(item.projectId))parent.sharedProjectIds.push(item.projectId)});
-          }else{
-            parent.sharedProjectIds=parent.sharedProjectIds.filter(id=>id!==target.projectId);
-            target.sharedParentId="";
-            target.selected=true;
-          }
-        }else if(checkbox.checked){
-          detachWeeklyItem(target);
-          target.selected=true;
-        }else{
-          if(target.sharedParentId)detachWeeklyItem(target);
-          target.selected=false;
-        }
-        saveWeeklyProjects();
-        const toolbarSummary=document.querySelector("#weeklyProjectToolbarPicker summary"),selectedCount=includedWeeklyProjectCount();
-        if(toolbarSummary)toolbarSummary.textContent=selectedCount?`已选 ${selectedCount} 个项目`:"请选择汇报项目";
-        if(picker)picker.dataset.changed="true";
-      }));
-      document.querySelectorAll(".weekly-project-picker").forEach(picker=>picker.addEventListener("toggle",()=>{
-        if(!picker.open&&picker.dataset.changed==="true"){renderWeeklyEditors();generateWeeklyReport()}
-      }));
+      document.querySelectorAll(".weekly-project-choice").forEach(select=>{
+        const picker=select.closest(".weekly-project-choice-wrap"),entryIndex=Number(picker?.dataset.entryIndex??-1);
+        select.addEventListener("change",()=>{
+          syncWeeklyProjects();
+          const selectedIds=new Set([...select.selectedOptions].map(option=>option.value)),parent=entryIndex>=0?weeklyProjects[entryIndex]:null,currentIds=parent?new Set([parent.projectId,...parent.sharedProjectIds]):new Set(weeklyProjects.filter(weeklyItemIncluded).map(item=>item.projectId));
+          weeklyProjects.slice().forEach(target=>{if(parent&&target.projectId===parent.projectId)return;const desired=selectedIds.has(target.projectId),current=currentIds.has(target.projectId);if(desired!==current)applyWeeklyProjectSelection(entryIndex,target,desired)});
+          saveWeeklyProjects();renderWeeklyEditors();generateWeeklyReport();
+        });
+        if(window.Choices){const instance=new Choices(select,{removeItemButton:true,searchEnabled:true,searchChoices:true,shouldSort:false,itemSelectText:"",noResultsText:"未找到项目",noChoicesText:"没有更多项目",placeholder:true,placeholderValue:select.selectedOptions.length?"":select.dataset.placeholder||"请选择项目",allowHTML:false}),root=select.closest(".choices");root?.addEventListener("click",event=>{if(!event.target.closest(".choices__button"))setTimeout(()=>instance.showDropdown(),0)},true);weeklyChoiceInstances.push(instance)}
+      });
       document.querySelectorAll(".add-custom-weekly-project").forEach(button=>button.addEventListener("click",()=>addCustomWeeklyProject(button.previousElementSibling)));
       document.querySelectorAll(".custom-weekly-project-name").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addCustomWeeklyProject(input)}}));
       document.querySelectorAll(".remove-weekly-custom").forEach(button=>button.addEventListener("click",()=>{
@@ -2241,11 +2315,12 @@
       }));
     }
     function renderWeeklyEditors(){
+      weeklyChoiceInstances.forEach(instance=>{try{instance.destroy()}catch(_){}});weeklyChoiceInstances=[];
       const selected=selectedWeeklyProjects(),toolbarPicker=el("weeklyProjectToolbarPicker"),includedCount=includedWeeklyProjectCount();
       if(toolbarPicker)toolbarPicker.innerHTML=weeklyProjectPickerMarkup(includedCount?`已选 ${includedCount} 个项目`:"请选择汇报项目","toolbar",-1);
       el("projectEditors").innerHTML=selected.length?selected.map(item=>{
         const index=weeklyProjects.indexOf(item),entryName=weeklyEntryName(item);
-        return `<article class="project-editor" data-index="${index}" data-project-id="${escapeHtml(item.projectId||"")}"><button type="button" class="clear-weekly-project ghost-danger" aria-label="清空${escapeHtml(entryName)}本周内容">清空</button><div class="field"><label>项目名称（可多选并共用内容）</label>${weeklyProjectPickerMarkup(entryName,index,index)}</div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`;
+        return `<article class="project-editor" data-index="${index}" data-project-id="${escapeHtml(item.projectId||"")}"><div class="field"><div class="weekly-project-heading"><label>项目名称（可多选并共用内容）</label><button type="button" class="clear-weekly-project ghost-danger" aria-label="清空${escapeHtml(entryName)}本周内容">清空</button></div>${weeklyProjectPickerMarkup(entryName,index,index)}</div><div class="field wide"><label>本周进展</label><textarea data-field="progress">${escapeHtml(item.progress)}</textarea></div><div class="field wide"><label>下一步</label><textarea data-field="next">${escapeHtml(item.next)}</textarea></div><div class="field wide"><label>风险／待确认</label><textarea data-field="risk">${escapeHtml(item.risk)}</textarea></div></article>`;
       }).join(""):`<div class="weekly-selector-empty"><div class="field"><label>项目名称</label>${weeklyProjectPickerMarkup("请选择汇报项目","empty",-1)}</div><div class="archive-help">可勾选现有项目（包括已归档项目），或添加自定义项目。</div></div>`;
       bindWeeklyProjectPickers();
       document.querySelectorAll(".project-editor textarea").forEach(node=>node.addEventListener("input",()=>{syncWeeklyProjects();generateWeeklyReport()}));
@@ -2369,6 +2444,7 @@
         const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.slice(0,4).map(material=>{const node=materialCurrentNode(material),task=node.task;return`<button type="button" class="material-mini-card open-material-node ${node.state}" data-project-id="${escapeHtml(project.id)}" data-material-id="${escapeHtml(material.id)}"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}</span><span class="material-node-state">${node.label}</span></div><div class="material-mini-node"><span class="material-stage-label"><span class="material-stage-label-text">${task?escapeHtml(task.name):"暂无排期"}</span></span></div><div class="material-mini-meta">${escapeHtml(node.detail)}${node.extra?` · 另有 ${node.extra} 个并行节点`:""} · 负责人：${escapeHtml(material.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk?`<div class="material-mini-meta">风险：${escapeHtml(material.risk)}</div>`:""}</button>`}).join("")}</div>${projectMaterials.length>4?`<div class="material-mini-more">另有 ${projectMaterials.length-4} 条素材，进入项目查看</div>`:""}`:"";
         return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")}${project.contact?` · 对接人：${escapeHtml(project.contact)}`:""} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${projectMaterials.length} 条素材`:""}</div></div><div class="project-card-badges"><span class="status-badge">${projectStatusNames[effectiveProjectStatus(project)]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta project-progress-meta">${completed}/${total} 节点正常 · ${normalRate}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta project-next-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${demandCard}${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
       }).join(""):'<div class="empty-state">当前筛选下没有项目。</div>';
+      document.querySelectorAll(".project-overview-card").forEach(card=>{const project=projectById(card.querySelector(".open-project")?.dataset.projectId),channels=project?projectChannelChipsMarkup(project):"";if(channels)card.querySelector(".project-card-head")?.insertAdjacentHTML("afterend",`<div class="project-card-channels">${channels}</div>`)});
       document.querySelectorAll(".open-project").forEach(button=>button.addEventListener("click",()=>enterProjectWorkspace(button.dataset.projectId)));
       document.querySelectorAll(".open-material-node").forEach(card=>card.addEventListener("click",()=>{enterProjectWorkspace(card.dataset.projectId);scheduleMaterialFocusId=card.dataset.materialId;activateView("manage")}));
       const alerts=buildAlerts();
@@ -2481,6 +2557,19 @@
         return `<div class="duration-row"><div class="duration-name"><strong>${escapeHtml(framedProjectLabel(task))}${escapeHtml(task.name)}</strong><div class="duration-range">${rangeText(task)} · ${typeNames[kind]} · ${delayText(task)}</div></div><div class="duration-track" role="img" aria-label="${escapeHtml(projectLabel(task))} ${escapeHtml(task.name)}，${task.duration} 天，${delayText(task)}"><div class="duration-bar ${kind} ${delay?"delayed":""}" style="width:${percent}%;${!delay&&kind==="production"?`background:${projectColor(task.project)}`:""}"></div></div><div class="duration-value">${task.duration} 天</div></div>`;
       }).join(""):'<div class="schedule-empty">当前筛选下没有可统计的排期节点。</div>';
     }
+    let kanbanInstance=null;
+    function renderKanban(){
+      const container=el("kanbanBoard");container.innerHTML="";kanbanInstance=null;
+      if(!window.jKanban){container.innerHTML='<div class="empty-state">看板组件加载失败，请刷新页面后重试。</div>';return}
+      const focused=projectById(focusedProjectId),token=searchFilter.toLowerCase(),statusIds=Object.keys(materialStatusNames),list=materials.filter(material=>{
+        const project=projectById(material.project);if(!project)return false;
+        if(focused&&material.project!==focused.id)return false;
+        if(!projectMatchesFilters(project,false))return false;
+        return !token||projectSearchMatches(project)||`${material.name} ${material.owner} ${material.contact} ${material.risk}`.toLowerCase().includes(token);
+      });
+      const boards=statusIds.map(status=>{const items=list.filter(material=>material.status===status);return{id:status,title:`${materialStatusNames[status]} · ${items.length}`,dragTo:statusIds,item:items.map(material=>{const project=projectById(material.project),node=materialCurrentNode(material),assetType=materialAssetTypeNames[material.assetType]||"未分类";return{id:material.id,title:`<div class="kanban-card"><div class="kanban-card-head"><span class="kanban-card-name">${escapeHtml(material.name)}</span><span class="kanban-card-project" style="color:${projectColor(project.id)};background:${projectTint(project.id)}">${escapeHtml(project.name)}</span></div><div class="kanban-card-meta">${escapeHtml(assetType)} · 当前：${escapeHtml(node.label)}${node.task?` · ${escapeHtml(node.task.name)}`:""}</div><div class="kanban-card-meta">负责人：${escapeHtml(material.owner||project.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk&&!isNoRisk(material.risk)?`<div class="kanban-card-meta kanban-card-risk">风险：${escapeHtml(material.risk)}</div>`:""}</div>`}})}});
+      kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:true,boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;activateView("manage")},dropEl:(item,target)=>{const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||material.status===status)return;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
+    }
     function render(){
       let focused=projectById(focusedProjectId);
       if(focusedProjectId&&!focused){focusedProjectId="";projectFilter="all";focused=null}
@@ -2497,11 +2586,12 @@
         bar.style.borderLeftColor=projectColor(focused.id);
         el("projectWorkspaceDot").style.background=projectColor(focused.id);
         el("projectWorkspaceTitle").textContent=focused.name;
-        el("projectWorkspaceMeta").textContent="负责人："+(focused.owner||"未填写")+(focused.contact?" · 客户对接人："+focused.contact:"")+" · "+tasks.filter(task=>task.project===focused.id).length+" 个节点 · "+materialsForProject(focused.id).length+" 条素材";
+        el("projectWorkspaceMeta").textContent="负责人："+(focused.owner||"未填写")+(focused.contact?" · 客户对接人："+focused.contact:"")+(channelSelectionList(focused.channels).length?" · 投放渠道："+channelSelectionList(focused.channels).join("、"):"")+" · "+tasks.filter(task=>task.project===focused.id).length+" 个节点 · "+materialsForProject(focused.id).length+" 条素材";
       }
-      renderProjectControls();renderMaterialManager();updateSummary();renderCalendar();renderGantt();renderDuration();if(currentView==="overview")renderOverview();
+      renderProjectControls();renderMaterialManager();updateSummary();renderCalendar();renderGantt();renderDuration();if(currentView==="overview")renderOverview();if(currentView==="kanban")renderKanban();
       el("overviewPanel").hidden=currentView!=="overview";
       el("calendarPanel").hidden=currentView!=="calendar";
+      el("kanbanPanel").hidden=currentView!=="kanban";
       el("ganttPanel").hidden=currentView!=="gantt";
       el("durationPanel").hidden=currentView!=="duration";
       el("cloudHistoryPanel").hidden=currentView!=="cloud";
@@ -2512,19 +2602,21 @@
       el("detailDrawerToggle").hidden=currentView!=="calendar";
       if(currentView!=="calendar")setDetailDrawerOpen(false);
       document.querySelector(".summary").hidden=["overview","weekly","cloud"].includes(currentView)||(currentView==="manage"&&!focused);
-      document.querySelector(".legend").hidden=["weekly","manage","overview","cloud"].includes(currentView);
+      document.querySelector(".legend").hidden=["weekly","manage","overview","cloud","kanban"].includes(currentView);
       el("workspace").classList.toggle("report-mode",currentView==="weekly");
       el("workspace").classList.toggle("manage-mode",currentView==="manage");
       el("workspace").classList.toggle("duration-mode",currentView==="duration");
       el("workspace").classList.toggle("overview-mode",currentView==="overview");
       el("workspace").classList.toggle("cloud-mode",currentView==="cloud");
+      el("workspace").classList.toggle("kanban-mode",currentView==="kanban");
       el("projectFilter").hidden=["weekly","cloud"].includes(currentView)||Boolean(focused);
       el("projectStatusFilter").hidden=["weekly","cloud"].includes(currentView)||Boolean(focused);
       el("projectPriorityFilter").hidden=["weekly","cloud"].includes(currentView)||Boolean(focused);
-      el("typeFilter").hidden=["weekly","cloud"].includes(currentView);
+      el("typeFilter").hidden=["weekly","cloud","kanban"].includes(currentView);
       el("globalSearch").hidden=["weekly","cloud"].includes(currentView);
       el("showArchivedWrap").hidden=["weekly","cloud"].includes(currentView)||Boolean(focused);
       if(currentView==="overview")el("viewTitle").textContent="项目统筹总览";
+      if(currentView==="kanban")el("viewTitle").textContent=focused?`${focused.name} · 素材看板`:"素材状态看板";
       if(currentView==="calendar")el("viewTitle").textContent=`${currentYear} 年 ${currentMonth+1} 月`;
       if(currentView==="gantt"){const bounds=projectBounds();el("viewTitle").textContent=formatDate(bounds.start)+"—"+formatDate(bounds.end)}
       if(currentView==="duration")el("viewTitle").textContent="节点计划耗时统计";
@@ -2560,7 +2652,7 @@
     el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
     el("addScheduleTask").addEventListener("click",()=>{
       const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
-      tasks.push({id,project,materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",updatedAt:new Date().toISOString()});
+      tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",updatedAt:new Date().toISOString()});
       saveScheduleTasks();renderScheduleEditors();render();
       document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
     });
@@ -2688,7 +2780,7 @@
         if (activeState === state) { renderMenu(state); positionMenu(state); }
       }
       const enhance = select => {
-        if (!(select instanceof HTMLSelectElement) || select.dataset.islandSelect === "true") return;
+        if (!(select instanceof HTMLSelectElement) || select.dataset.islandSelect === "true" || select.dataset.choicesManaged) return;
         select.dataset.islandSelect = "true";
         const wrapper = document.createElement("span");
         wrapper.className = "island-select-wrap";
@@ -2864,5 +2956,6 @@
       window.addEventListener("resize",positionMenu);
       window.addEventListener("scroll",positionMenu,true);
     })();
-  </script></body>
+  </script>
+  </body>
 </html>
