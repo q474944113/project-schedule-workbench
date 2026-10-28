@@ -881,14 +881,47 @@
     .workspace.kanban-mode { grid-template-columns:minmax(0,1fr); }
     .workspace.kanban-mode .detail { display:none; }
     @media (max-width:560px) { .kanban-panel{padding:10px} #kanbanBoard .kanban-board{width:250px!important} }
+    body.access-locked { overflow:hidden; }
+    body.access-locked #appRoot { display:none; }
+    .access-gate { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:20px; overflow:auto; background-color:#75c798; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='none' stroke='%2358ad7e' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.34'%3E%3Cpath d='M28 65C7 47 15 17 43 16c25-1 37 24 24 44-9 14-25 20-39 5Z'/%3E%3Cpath d='M28 65c9-17 19-29 33-40M25 41l20 5M38 24l6 19M61 25l-8 20'/%3E%3Cpath d='M105 132c-22-17-18-47 7-56 24-8 43 13 36 35-5 16-25 31-43 21Z'/%3E%3Cpath d='M105 132c5-18 14-33 29-47M102 108l20 2M116 88l4 19M136 87l-8 19'/%3E%3C/g%3E%3C/svg%3E"),radial-gradient(circle at 50% 35%,rgba(255,255,255,.16),transparent 33%),linear-gradient(180deg,#7bcba0,#70bf91); background-size:150px 150px,100% 100%,100% 100%; }
+    .access-gate[hidden] { display:none; }
+    .access-card { width:min(440px,100%); padding:24px 20px 28px; color:#725d42; text-align:center; }
+    .access-icon { display:grid; place-items:center; width:78px; height:78px; margin:0 auto 19px; border:4px solid rgba(255,253,247,.82); border-radius:28px; background:#f1c75b; color:#75552f; box-shadow:0 6px 0 rgba(112,82,47,.34),0 15px 32px rgba(66,100,72,.2); transform:rotate(-3deg); }
+    .access-icon svg { width:39px; height:39px; transform:rotate(3deg); }
+    .access-card h1 { margin:0; color:#fffdf7; font-size:clamp(34px,8vw,48px); font-weight:800; letter-spacing:.04em; text-shadow:0 4px 0 #6d9c72,0 7px 18px rgba(64,94,68,.22); white-space:normal; }
+    .access-version { display:inline-flex; margin-top:9px; padding:4px 10px; border-radius:999px; background:rgba(255,253,247,.88); color:#3d9a77; font-size:10px; font-weight:800; letter-spacing:.1em; box-shadow:0 2px 0 rgba(76,119,81,.17); }
+    .access-card p { margin:13px 0 20px; color:#805d35; font-size:14px; font-weight:700; text-shadow:0 1px rgba(255,255,255,.25); }
+    .access-form { display:grid; gap:11px; padding:19px; border:1px solid rgba(255,255,255,.7); border-radius:25px; background:rgba(255,253,247,.9); box-shadow:0 7px 0 rgba(116,91,62,.28),0 18px 36px rgba(53,97,67,.18); backdrop-filter:blur(7px); }
+    .access-form input { width:100%; padding:13px 15px; border:1px solid rgba(159,146,125,.58); border-radius:14px; background:#fff; color:#725d42; font-size:16px; letter-spacing:2px; text-align:center; box-sizing:border-box; }
+    .access-form input:focus { outline:3px solid rgba(158,217,207,.38); border-color:#67b9ad; }
+    .access-form button { width:100%; padding:12px 16px; border:1px solid rgba(128,93,53,.18); border-radius:999px; background:#fffaf0; color:#805d35; box-shadow:0 4px 0 #b79579; font-weight:800; }
+    .access-form button:hover { background:#fff4d7; transform:translateY(-1px); box-shadow:0 5px 0 #b79579; }
+    .access-form button:disabled { opacity:.65; cursor:wait; }
+    .access-message { min-height:18px; color:#c45252; font-size:12px; }
+    .access-remember { margin-top:16px; color:#6b805f; font-size:11px; font-weight:700; line-height:1.5; }
   </style>
 </head>
-<body>
+<body class="access-locked">
+  <section id="accessGate" class="access-gate" aria-labelledby="accessTitle">
+    <div class="access-card">
+      <div class="access-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <h1 id="accessTitle">项目排期工作台</h1>
+      <div class="access-version">WORKBENCH</div>
+      <p>输入密码，开启今天的排期管理</p>
+      <form id="accessForm" class="access-form">
+        <input id="accessPassword" type="password" inputmode="numeric" autocomplete="current-password" aria-label="访问密码" placeholder="输入密码" required>
+        <button id="accessSubmit" type="submit">进入工作台</button>
+        <div id="accessMessage" class="access-message" role="alert" aria-live="polite"></div>
+      </form>
+      <div class="access-remember">验证后会记住当前设备，无需每次输入。</div>
+    </div>
+  </section>
   <main class="app" id="appRoot">
     <aside id="utilitySidebar" class="utility-sidebar" aria-label="工具侧边栏">
       <div class="utility-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.2h10.2a4.1 4.1 0 0 0 .5-8.2A6.2 6.2 0 0 0 6.1 8.5a4.9 4.9 0 0 0 1.1 9.7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>工作台工具</span></div>
       <div class="utility-group-label">工具</div>
       <button type="button" class="utility-nav-item" data-view="cloud" title="云端版本历史"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.2h10.2a4.1 4.1 0 0 0 .5-8.2A6.2 6.2 0 0 0 6.1 8.5a4.9 4.9 0 0 0 1.1 9.7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 13.3h7M12 9.8v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>云端历史</span></button>
+      <button type="button" id="lockWorkbench" class="utility-nav-item" title="锁定工作台"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>锁定工作台</span></button>
     </aside>
     <header class="hero">
       <div>
@@ -2692,7 +2725,36 @@
       await initCloudSync();
       if(!cloudReady){renderWeeklyEditors();renderReportHistory();setEvaluationDefaults();render();showDetail(parse(TODAY))}
     }
-    bootstrapWorkbench();
+    window.bootstrapWorkbench=bootstrapWorkbench;
+  </script>
+  <script>
+    (() => {
+      const ACCESS_STORAGE_KEY="project-workbench-access-v1";
+      const ACCESS_PASSWORD_HASH="e5b7ff8fbf8a82e170767733f7a9bb426bb7f59f1df6f5de103581435e26fc14";
+      const gate=document.getElementById("accessGate"),form=document.getElementById("accessForm"),input=document.getElementById("accessPassword"),button=document.getElementById("accessSubmit"),message=document.getElementById("accessMessage");
+      let started=false;
+      const storedAccess=()=>{try{return localStorage.getItem(ACCESS_STORAGE_KEY)}catch(_){return""}};
+      const rememberAccess=()=>{try{localStorage.setItem(ACCESS_STORAGE_KEY,ACCESS_PASSWORD_HASH)}catch(_){}};
+      const clearAccess=()=>{try{localStorage.removeItem(ACCESS_STORAGE_KEY)}catch(_){}};
+      const sha256=async value=>{const data=new TextEncoder().encode(value),hash=await crypto.subtle.digest("SHA-256",data);return[...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,"0")).join("")};
+      const unlock=()=>{
+        document.body.classList.remove("access-locked");
+        document.body.classList.add("access-granted");
+        gate.hidden=true;
+        if(!started){started=true;window.bootstrapWorkbench?.()}
+      };
+      if(storedAccess()===ACCESS_PASSWORD_HASH)unlock();
+      else requestAnimationFrame(()=>input.focus());
+      form.addEventListener("submit",async event=>{
+        event.preventDefault();message.textContent="";button.disabled=true;button.textContent="验证中…";
+        try{
+          if(await sha256(input.value)===ACCESS_PASSWORD_HASH){rememberAccess();input.value="";unlock()}
+          else{message.textContent="密码错误，请重新输入。";input.select()}
+        }catch(_){message.textContent="当前浏览器无法完成验证，请更换浏览器重试。"}
+        finally{button.disabled=false;button.textContent="进入工作台"}
+      });
+      document.getElementById("lockWorkbench").addEventListener("click",()=>{clearAccess();location.reload()});
+    })();
   </script>
   <script>
     (() => {
