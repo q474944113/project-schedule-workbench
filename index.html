@@ -899,6 +899,75 @@
     .access-form button:disabled { opacity:.65; cursor:wait; }
     .access-message { min-height:18px; color:#c45252; font-size:12px; }
     .access-remember { margin-top:16px; color:#6b805f; font-size:11px; font-weight:700; line-height:1.5; }
+
+    /* Square and portrait screens: keep the overview dense without squeezing cards into narrow columns. */
+    @media (max-aspect-ratio:4/3) {
+      .app { padding-top:14px; padding-right:16px; padding-bottom:18px; }
+      .hero { align-items:stretch; flex-direction:column; gap:9px; margin-bottom:10px; }
+      h1 { font-size:clamp(21px,4.4vw,27px); }
+      .sub { font-size:12px; }
+      .cloud-status { margin-top:4px; padding:3px 8px; font-size:11px; }
+      .controls { width:100%; flex-wrap:wrap; align-items:center; gap:6px; padding:1px 1px 7px; overflow:visible; }
+      .controls > * { flex:0 1 auto; }
+      .controls .tabs { display:flex; width:100%; flex-wrap:wrap; gap:3px; padding:4px; overflow:visible; }
+      .tabs button { padding:7px 10px; font-size:12px; white-space:nowrap; }
+      .search-input { width:162px; padding:7px 9px; font-size:12px; }
+      .controls select, .controls .island-select-wrap { width:auto; min-width:112px; max-width:none; font-size:12px; }
+      .controls .island-select-trigger { min-height:36px; padding:0 12px; }
+      .filter-check { font-size:12px; }
+      .panel-head { padding:10px 12px; }
+      .legend { gap:8px 12px; padding:8px 12px; font-size:11px; }
+      .drag-help { padding:7px 12px; font-size:11px; }
+      .overview-panel { padding:11px; }
+      .overview-section + .overview-section { margin-top:11px; }
+      .overview-section-head { margin-bottom:7px; }
+      .overview-section h3 { font-size:14px; }
+      .project-board { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:0; overflow:visible; }
+      .project-overview-card { width:auto; min-width:0; max-width:none; height:100%; padding:10px; overflow:visible; }
+      .project-card-head { height:59px; gap:6px; }
+      .project-card-title { font-size:14px; }
+      .project-card-meta { margin-top:2px; font-size:11px; }
+      .project-card-badges { gap:3px; }
+      .project-card-badges .status-badge, .project-card-badges .priority-badge { min-height:20px; padding:2px 6px; font-size:10px; }
+      .project-progress-meta, .project-next-meta { min-height:16px; }
+      .project-demand-summary { margin-top:6px; padding:7px 8px; border-radius:11px; }
+      .project-demand-head { flex-wrap:wrap; gap:6px; font-size:11px; }
+      .project-demand-head > span { white-space:normal; }
+      .project-demand-chips { flex-wrap:wrap; gap:4px; margin-top:5px; padding-bottom:0; overflow:visible; }
+      .project-demand-chip { padding:3px 6px; font-size:10px; white-space:normal; }
+      .progress-track { height:7px; margin:7px 0 4px; }
+      .material-mini-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:7px; padding:0; overflow:visible; }
+      .material-mini-card { width:100%; min-width:0; min-height:105px; padding:8px 9px; border-radius:15px; }
+      .material-mini-name { font-size:12px; }
+      .material-node-state { padding:2px 5px; font-size:9px; }
+      .material-mini-node { margin-top:5px; font-size:11px; }
+      .material-stage-label { gap:4px; padding:3px 7px 3px 5px; font-size:10px; }
+      .material-stage-label::before { width:8px; height:6px; }
+      .material-mini-meta { margin-top:2px; overflow:visible; color:#8a7965; font-size:9px; text-overflow:clip; white-space:normal; }
+      .material-mini-more { margin-top:4px; font-size:10px; text-align:left; }
+      .project-card-footer { padding-top:6px; font-size:11px; }
+      .overview-grid { gap:8px; }
+      .overview-box { padding:9px 10px; }
+      .overview-alerts[open] > summary, .overview-workload[open] > summary { margin-bottom:7px; }
+      .overview-workload:not([open]) #workloadList { display:none; }
+      .alert-list, .workload-list { gap:5px; }
+      .alert-item, .workload-item { padding:7px 8px; font-size:11px; }
+    }
+    @media (max-width:560px) {
+      .app { padding:10px; }
+      .hero { padding:12px; }
+      .controls { flex-direction:column; align-items:stretch; overflow:visible; }
+      .controls .tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
+      .utility-sidebar { flex-wrap:wrap; overflow:visible; }
+      .utility-brand { width:100%; border-right:0; border-bottom:1px solid rgba(159,146,125,.28); }
+      .utility-group-label { flex:0 0 auto; }
+      .utility-nav-item { flex:1; }
+      .overview-panel { padding:8px; }
+      .project-board { grid-template-columns:1fr; }
+      .material-mini-grid { display:grid; grid-template-columns:1fr; }
+      .material-mini-card { width:100%; }
+      .overview-section-head .archive-help { font-size:10px; }
+    }
   </style>
 </head>
 <body class="access-locked">
@@ -1014,10 +1083,10 @@
               <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">仅提醒未完成延期、今日到期及未来提交节点</div></div><span id="alertCount" class="archive-help"></span></summary>
               <div id="alertList" class="alert-list"></div>
             </details>
-            <div class="overview-box">
-              <div class="overview-section-head"><h3>负责人工作量</h3><span class="archive-help">按子素材数统计，不计节点数</span></div>
+            <details class="overview-box overview-workload">
+              <summary class="overview-section-head overview-history-summary"><h3>负责人工作量</h3><span class="archive-help">按子素材数统计，不计节点数</span></summary>
               <div id="workloadList" class="workload-list"></div>
-            </div>
+            </details>
           </section>
         </div>
         <div id="calendarPanel" class="calendar-wrap" hidden><div id="calendar" class="calendar"></div></div>
