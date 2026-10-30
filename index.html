@@ -1143,7 +1143,7 @@
               <select id="newMaterialType" aria-label="素材类型"><option value="unclassified" selected>未分类</option><option value="twoD">2D</option><option value="threeD">3D</option><option value="twoDIteration">2D迭代</option><option value="threeDIteration">3D迭代</option><option value="videoToPlayable">视频转试玩</option></select>
               <input id="newMaterialOwner" type="text" maxlength="120" data-person-combobox="owner" placeholder="负责人（默认继承项目，可多选）">
               <input id="newMaterialContact" type="text" maxlength="120" data-person-combobox="contact" placeholder="客户对接人（默认继承项目，可多选）">
-              <select id="newMaterialStatus" aria-label="子素材状态"><option value="not_started">未开始</option><option value="production">制作中</option><option value="pending_submit">待提交</option><option value="pending_feedback">待反馈</option><option value="revision">修改中</option><option value="completed">已完成</option></select>
+              <select id="newMaterialStatus" aria-label="子素材状态"><option value="auto">自动判断</option><option value="not_started">手动：未开始</option><option value="production">手动：进行中</option><option value="pending_submit">手动：待提交</option><option value="pending_feedback">手动：待反馈</option><option value="revision">手动：修改中</option><option value="completed">手动：已完成</option></select>
               <button type="button" id="addMaterial" class="primary">＋ 添加子素材</button>
             </div>
             <div id="materialManagerList" class="material-manager-list"></div>
@@ -1630,7 +1630,8 @@
     let cloudSnapshots=[],cloudHistoryLoading=false,cloudHistoryExpanded=false;
     function normalizeTask(task,index,prefix="saved"){
       const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),legacyMaterialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),rawMaterialIds=Array.isArray(task.materialIds)?task.materialIds:(legacyMaterialId?[legacyMaterialId]:[]),materialIds=[...new Set(rawMaterialIds.map(value=>String(value||"").trim()).filter(Boolean))],{direction,materialId:ignoredMaterialId,materialIds:ignoredMaterialIds,...base}=task;
-      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialIds,materialId:materialIds[0]||"",submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",updatedAt:task.updatedAt||""};
+      const legacyStatus=["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",statusOverride=["not_started","in_progress","waiting","completed"].includes(task.statusOverride)?task.statusOverride:legacyStatus==="waiting"?"waiting":"";
+      return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialIds,materialId:materialIds[0]||"",submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":legacyStatus,statusOverride,updatedAt:task.updatedAt||""};
     }
     function classifySpecialTask(task){const label=`${task.name||""} ${task.note||""}`;if(task.type==="supervision"||/监修/.test(label))return{...task,type:"supervision",submit:false};if(task.type==="acceptance"||/验收/.test(label))return{...task,type:"acceptance",submit:false};if(task.type==="packaging"||/打包/.test(label))return{...task,type:"packaging",submit:false};return task}
     function cloneDefaultTasks(){return defaultTasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"schedule")))}
@@ -1670,7 +1671,7 @@
     }
     let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
     let projects=loadProjects(tasks);
-    const materialStatusNames={not_started:"未开始",production:"制作中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
+    const materialStatusNames={not_started:"未开始",production:"进行中",pending_submit:"待提交",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
     const normalizeMaterialVersions=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(item=>String(item||"").trim().slice(0,30)).filter(Boolean))].slice(0,20);
     const materialVersionCount=material=>Math.max(1,normalizeMaterialVersions(material?.versions).length);
     const materialVersionNames=material=>normalizeMaterialVersions(material?.versions);
@@ -1678,7 +1679,7 @@
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
-      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,assetType:"unclassified",versions:[],owner:project.owner||"",contact:project.contact||"",status:"not_started",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
+      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,assetType:"unclassified",versions:[],owner:project.owner||"",contact:project.contact||"",status:"not_started",statusOverride:"",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
     }
     function normalizeMaterials(items,projectList,taskList,seedMissing=false){
       const validProjects=new Set(projectList.map(project=>project.id)),validTasksByProject=new Map(),seen=new Set(),result=[];
@@ -1689,7 +1690,8 @@
         if(!project||!validProjects.has(project)||!id||seen.has(id))return;
         seen.add(id);
         const validTaskIds=validTasksByProject.get(project)||new Set();
-        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,assetType:Object.prototype.hasOwnProperty.call(materialAssetTypeNames,item.assetType)?item.assetType:"unclassified",versions:normalizeMaterialVersions(item.versions),owner:normalizePersonSelection(item.owner),contact:normalizePersonSelection(item.contact),status:Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
+        const legacyStatus=Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",statusOverride=Object.prototype.hasOwnProperty.call(materialStatusNames,item.statusOverride)?item.statusOverride:["pending_submit","pending_feedback","revision"].includes(legacyStatus)?legacyStatus:"";
+        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,assetType:Object.prototype.hasOwnProperty.call(materialAssetTypeNames,item.assetType)?item.assetType:"unclassified",versions:normalizeMaterialVersions(item.versions),owner:normalizePersonSelection(item.owner),contact:normalizePersonSelection(item.contact),status:legacyStatus,statusOverride,completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
       });
       if(seedMissing)defaultMaterials(projectList).forEach(item=>{if(!seen.has(item.id))result.push(item)});
       return result;
@@ -1709,7 +1711,7 @@
           if(existing?.project===task.project){valid.push(materialId);return}
           const match=task.project==="s3g"?materialId.match(/^material-s3g-direction-(\d+)$/):null;
           if(!match)return;
-          const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,assetType:"unclassified",versions:[],owner:project?.owner||"",contact:project?.contact||"",status:isDirection5?"not_started":"production",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
+          const project=projectList.find(item=>item.id===task.project),isDirection5=match[1]==="5",material={id:materialId,project:task.project,name:isDirection5?"方向5-割草升级":`方向${match[1]}`,assetType:"unclassified",versions:[],owner:project?.owner||"",contact:project?.contact||"",status:isDirection5?"not_started":"production",statusOverride:"",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""};
           materialList.push(material);known.set(material.id,material);valid.push(materialId);
         });
         task.materialIds=[...new Set(valid)];task.materialId=task.materialIds[0]||"";
@@ -1907,7 +1909,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:17,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:18,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1979,7 +1981,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions))||Number(data.payload.schemaVersion||0)<17||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions))||Number(data.payload.schemaVersion||0)<18||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -2041,7 +2043,18 @@
     const taskGanttStart=taskDisplayStart;
     const taskGanttEnd=taskDisplayEnd;
     const ganttActiveOn=activeOn;
-    const taskEffectiveStatus=t=>t.actualEnd?"completed":t.status;
+    const taskStatusOverride=t=>Object.prototype.hasOwnProperty.call(taskStatusNames,t?.statusOverride)?t.statusOverride:"";
+    function automaticTaskStatus(t){
+      if(t.actualEnd)return"completed";
+      if(t.end<TODAY)return"completed";
+      if(t.start>TODAY)return"not_started";
+      return"in_progress";
+    }
+    const taskEffectiveStatus=t=>t.actualEnd?"completed":taskStatusOverride(t)||automaticTaskStatus(t);
+    function taskStatusSelectOptions(task){
+      const automatic=automaticTaskStatus(task),override=taskStatusOverride(task);
+      return`<option value="auto" ${override?"":"selected"}>自动判断（${taskStatusNames[automatic]}）</option>${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${override===value?"selected":""}>手动：${label}</option>`).join("")}`;
+    }
     const formatDate=s=>{const d=parse(s);return`${d.getMonth()+1} 月 ${d.getDate()} 日`};
     const rangeText=t=>!t.end||t.start===t.end?formatDate(t.start):`${formatDate(t.start)}—${formatDate(t.end)}`;
     const projectById=id=>projects.find(project=>project.id===id);
@@ -2101,7 +2114,7 @@
     function placeTask(task,targetStart,copy=false){
       const range=shiftedRange(task,targetStart);
       if(copy){
-        const clone={...task,materialIds:[...taskMaterialIds(task)],...range,actualEnd:"",status:"not_started",updatedAt:new Date().toISOString(),id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${task.name}（副本）`};
+        const clone={...task,materialIds:[...taskMaterialIds(task)],...range,actualEnd:"",status:"not_started",statusOverride:"",updatedAt:new Date().toISOString(),id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${task.name}（副本）`};
         tasks.push(clone);
       } else Object.assign(task,range,{updatedAt:new Date().toISOString()});
       saveScheduleTasks();render();showDetail(parse(targetStart));
@@ -2116,14 +2129,15 @@
       } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
       else if(field==="project"){task.project=value;task.materialIds=[];task.materialId=""}
       else if(field==="materialIds"){task.materialIds=[...new Set((Array.isArray(value)?value:[]).filter(id=>materials.some(item=>item.id===id&&item.project===task.project)))];task.materialId=task.materialIds[0]||""}
+      else if(field==="statusOverride"){task.statusOverride=value==="auto"?"":value;if(task.statusOverride)task.status=task.statusOverride}
       else task[field]=value;
       if(field==="actualEnd"){
-        if(value)task.status="completed";
-        else if(task.status==="completed")task.status="in_progress";
+        if(value){task.status="completed";task.statusOverride=""}
+        else task.status=automaticTaskStatus(task);
       }
       task.updatedAt=new Date().toISOString();
       if(task.start&&task.end&&task.end<task.start)task.end=task.start;
-      saveScheduleTasks();updateSummary();renderCalendar();renderGantt();renderDuration();
+      task.status=taskEffectiveStatus(task);saveScheduleTasks();syncMaterialStatuses();if(["project","materialIds","statusOverride","start","end","actualEnd"].includes(field)){renderMaterialManager();renderMaterialNodeBoard()}updateSummary();renderCalendar();renderGantt();renderDuration();
     }
     function saveProjects(){
       try{localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects))}catch(_){}
@@ -2137,12 +2151,28 @@
     const materialsForProject=projectId=>materials.filter(item=>item.project===projectId);
     const materialsForTask=task=>{const list=materialsForProject(task.project),ids=taskMaterialIds(task);return ids.length?list.filter(item=>ids.includes(item.id)):list};
     const taskAppliesToMaterial=(task,material)=>{const ids=taskMaterialIds(task);return task.project===material.project&&(!ids.length||ids.includes(material.id))};
+    const materialStatusOverride=material=>Object.prototype.hasOwnProperty.call(materialStatusNames,material?.statusOverride)?material.statusOverride:"";
+    function automaticMaterialStatus(material){
+      const list=tasks.filter(task=>taskAppliesToMaterial(task,material));
+      if(!list.length)return"not_started";
+      const starts=list.map(task=>task.start).filter(Boolean).sort();
+      if(!starts.length)return"not_started";
+      if(list.every(task=>taskEffectiveStatus(task)==="completed"))return"completed";
+      if(starts[0]>TODAY)return"not_started";
+      return"production";
+    }
+    const effectiveMaterialStatus=material=>materialStatusOverride(material)||automaticMaterialStatus(material);
+    const syncMaterialStatuses=()=>materials.forEach(material=>{material.status=effectiveMaterialStatus(material)});
+    function materialStatusSelectOptions(material){
+      const automatic=automaticMaterialStatus(material),override=materialStatusOverride(material);
+      return`<option value="auto" ${override?"":"selected"}>自动判断（${materialStatusNames[automatic]}）</option>${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${override===value?"selected":""}>手动：${label}</option>`).join("")}`;
+    }
     const isMaterialTaskComplete=(material,task)=>!material.incompleteTaskIds.includes(task.id);
     function materialTaskProgress(task){
       const list=materialsForTask(task),completed=list.filter(item=>isMaterialTaskComplete(item,task)).length;
       return{completed,total:list.length,label:list.length?`${completed}/${list.length}条正常`:""};
     }
-    const taskCompletedByDate=task=>Boolean(task.actualEnd)||task.end<TODAY;
+    const taskCompletedByDate=task=>taskEffectiveStatus(task)==="completed";
     function materialOverallProgress(material){
       const projectTasks=tasks.filter(task=>taskAppliesToMaterial(task,material)),finished=projectTasks.filter(taskCompletedByDate),normal=finished.filter(task=>isMaterialTaskComplete(material,task)&&!delayDays(task)).length;
       return{completed:normal,done:finished.length,total:projectTasks.length,percent:finished.length?Math.round(normal/finished.length*100):0,progressPercent:projectTasks.length?Math.round(finished.length/projectTasks.length*100):0,pending:projectTasks.length-finished.length};
@@ -2163,7 +2193,7 @@
       const delayed=delayDays(last);
       if(delayed)return{task:last,state:"attention",label:"延期完成",detail:`${rangeText(last)} · 实际 ${formatDate(last.actualEnd)} · 延期 ${delayed} 天`,extra:0};
       if(last.actualEnd)return{task:last,state:"done",label:"已完成",detail:`${rangeText(last)} · 实际 ${formatDate(last.actualEnd)}`,extra:0};
-      return{task:last,state:"done",label:material.status==="completed"?"已完成":"排期结束",detail:rangeText(last),extra:0};
+      return{task:last,state:"done",label:effectiveMaterialStatus(material)==="completed"?"已完成":"排期结束",detail:rangeText(last),extra:0};
     }
     function renderMaterialNodeBoard(){
       const board=el("materialNodeBoard");if(!board)return;
@@ -2201,10 +2231,11 @@
       applyNewMaterialDefaults(false);
       const managerUnits=materialUnitCount(managerMaterials);el("materialManagerCount").textContent=`${managerMaterials.length} 条子素材${managerUnits!==managerMaterials.length?` · ${managerUnits} 份素材`:""}`;
       el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" data-person-combobox="owner" type="text" maxlength="120" value="${escapeHtml(material.owner)}" placeholder="负责人（可多选）"><input data-material-field="contact" data-person-combobox="contact" type="text" maxlength="120" value="${escapeHtml(material.contact)}" placeholder="客户对接人（可多选）"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span>${materialVersionEditorMarkup(material)}</div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      managerMaterials.forEach(material=>{const row=document.querySelector(`.material-manager-item[data-material-id="${CSS.escape(material.id)}"]`),statusControl=row?.querySelector('[data-material-field="status"]');if(!statusControl)return;statusControl.dataset.materialField="statusOverride";statusControl.title="默认按关联排期及实际完成时间自动判断；异常时可手动覆盖";statusControl.innerHTML=materialStatusSelectOptions(material)});
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,rawValue=control.value.trim(),value=["owner","contact"].includes(field)?normalizePersonSelection(rawValue):rawValue;
-        if(field==="project"){tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else material[field]=value;
+        if(field==="project"){tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else if(field==="statusOverride"){material.statusOverride=value==="auto"?"":value;if(material.statusOverride)material.status=material.statusOverride}else material[field]=value;
         material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY));
       }));
       const addVersion=editor=>{const material=materials.find(item=>item.id===editor.closest(".material-manager-item").dataset.materialId),input=editor.querySelector(".material-version-input"),values=normalizeMaterialVersions(input.value);if(!material||!values.length){input.focus();return}material.versions=normalizeMaterialVersions([...materialVersionNames(material),...values]);material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY))};
@@ -2218,8 +2249,9 @@
       if(!name){el("newMaterialName").focus();return}
       if(!projectById(project))return alert("请先选择所属项目。");
       const parent=projectById(project);
-      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,versions:[],owner:normalizePersonSelection(el("newMaterialOwner").value)||parent?.owner||"",contact:normalizePersonSelection(el("newMaterialContact").value)||parent?.contact||"",status:el("newMaterialStatus").value,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
-      el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialStatus").value="not_started";el("newMaterialOwner").value=parent?.owner||"";el("newMaterialContact").value=parent?.contact||"";window.syncPersonChoices?.(el("newMaterialOwner"));window.syncPersonChoices?.(el("newMaterialContact"));saveMaterials();render();
+      const selectedStatus=el("newMaterialStatus").value,statusOverride=selectedStatus==="auto"?"":selectedStatus;
+      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,versions:[],owner:normalizePersonSelection(el("newMaterialOwner").value)||parent?.owner||"",contact:normalizePersonSelection(el("newMaterialContact").value)||parent?.contact||"",status:statusOverride||"not_started",statusOverride,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
+      el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialStatus").value="auto";el("newMaterialOwner").value=parent?.owner||"";el("newMaterialContact").value=parent?.contact||"";window.syncPersonChoices?.(el("newMaterialOwner"));window.syncPersonChoices?.(el("newMaterialContact"));saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
     function taskMaterialSummary(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),names=list.filter(item=>selected.has(item.id)).map(item=>item.name);return!list.length?"项目通用节点":!selected.size?"全部子素材":names.length>2?`${names.slice(0,2).join("、")} +${names.length-2}`:names.join("、")}
@@ -2267,10 +2299,11 @@
       const list=visibleTasks().filter(task=>!focusedMaterial||taskAppliesToMaterial(task,focusedMaterial));
       const compact=window.matchMedia("(max-width: 560px)").matches;
       el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      document.querySelectorAll('.schedule-row [data-task-field="status"]').forEach(control=>{const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;control.dataset.taskField="statusOverride";control.title="默认按预计日期和实际完成时间自动判断；异常时可手动覆盖";control.innerHTML=taskStatusSelectOptions(task)});
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
         updateTask(task,control.dataset.taskField,control.type==="checkbox"?control.checked:control.value);
-        if(["project","materialId","kind","status","start","actualEnd"].includes(control.dataset.taskField))renderScheduleEditors();
+        if(["project","materialIds","kind","statusOverride","start","end","actualEnd"].includes(control.dataset.taskField))renderScheduleEditors();
       }));
       document.querySelectorAll('[data-task-field="name"],[data-task-field="note"]').forEach(control=>control.addEventListener("input",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(task)updateTask(task,control.dataset.taskField,control.value);
@@ -2283,8 +2316,8 @@
       }));
       document.querySelectorAll(".duplicate-schedule-task").forEach(button=>button.addEventListener("click",()=>{
         const row=button.closest(".schedule-row"),source=tasks.find(item=>item.id===row.dataset.taskId);if(!source)return;
-        const copy={...source,materialIds:[...taskMaterialIds(source)],actualEnd:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${source.name}（副本）`};
-        tasks.push(copy);saveScheduleTasks();renderScheduleEditors();updateSummary();renderCalendar();renderGantt();renderDuration();
+        const copy={...source,materialIds:[...taskMaterialIds(source)],actualEnd:"",status:"not_started",statusOverride:"",id:`schedule-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:`${source.name}（副本）`};
+        tasks.push(copy);saveScheduleTasks();syncMaterialStatuses();renderMaterialManager();renderMaterialNodeBoard();renderScheduleEditors();updateSummary();renderCalendar();renderGantt();renderDuration();
         const copiedRow=document.querySelector(`[data-task-id="${copy.id}"]`);
         copiedRow?.scrollIntoView({block:"center",behavior:"smooth"});
         copiedRow?.querySelector(".task-name")?.select();
@@ -2547,7 +2580,7 @@
           let delay=0,date=parse(task.end);date.setDate(date.getDate()+1);while(date<=today){if(!isRestDay(date))delay++;date.setDate(date.getDate()+1)}
           alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${Math.max(1,delay)} 天 · 未完成`,detail:`计划 ${rangeText(task)}，未完成素材：${incompleteMaterials.map(material=>material.name).join("、")}。`});return
         }
-        if(task.status==="completed")return;
+        if(taskEffectiveStatus(task)==="completed")return;
         if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
         else if(days>0&&task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
       });
@@ -2645,7 +2678,7 @@
       weekdays.forEach(x=>cells.push(`<div class="weekday">${x}</div>`));
       for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
       monthDays.forEach(({day,date,key,items})=>{
-        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.length?`<span class="calendar-day-marker" aria-label="当天 ${items.length} 项排期">${items.length}</span>`:""}${items.map(t=>{const delay=delayDays(t);return`<button type="button" draggable="${t.actualEnd?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${t.actualEnd?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
+        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.length?`<span class="calendar-day-marker" aria-label="当天 ${items.length} 项排期">${items.length}</span>`:""}${items.map(t=>{const delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed";return`<button type="button" draggable="${completed?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
       });
       calendar.innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
       document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
@@ -2664,7 +2697,7 @@
     function renderGantt(){
       const list=visibleTasks(),fallback=projectBounds(),bounds=list.length?{start:list.reduce((min,task)=>taskGanttStart(task)<min?taskGanttStart(task):min,taskGanttStart(list[0])),end:list.reduce((max,task)=>taskGanttEnd(task)>max?taskGanttEnd(task):max,taskGanttEnd(list[0]))}:fallback,dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
       const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
-      const rows=list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${t.actualEnd?"completed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
+      const rows=list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed",actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
       el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
     }
     function taskDuration(task){return dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
@@ -2692,9 +2725,10 @@
         return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk}`.toLowerCase().includes(token);
       });
       const boards=statusIds.map(status=>{const items=list.filter(material=>material.status===status),units=materialUnitCount(items);return{id:status,title:`${materialStatusNames[status]} · ${items.length} 项${units!==items.length?` · ${units} 份`:""}`,dragTo:statusIds,item:items.map(material=>{const project=projectById(material.project),node=materialCurrentNode(material),assetType=materialAssetTypeNames[material.assetType]||"未分类",versions=materialVersionNames(material),versionCount=materialVersionCount(material);return{id:material.id,title:`<div class="kanban-card"><div class="kanban-card-head"><span class="kanban-card-name">${escapeHtml(material.name)}${versionCount>1?`<span class="material-version-badge">${versionCount} 版</span>`:""}</span><span class="kanban-card-project" style="color:${projectColor(project.id)};background:${projectTint(project.id)}">${escapeHtml(project.name)}</span></div>${versions.length?`<div class="kanban-card-meta">版本：${escapeHtml(versions.join("、"))}</div>`:""}<div class="kanban-card-meta">${escapeHtml(assetType)} · 当前：${escapeHtml(node.label)}${node.task?` · ${escapeHtml(node.task.name)}`:""}</div><div class="kanban-card-meta">负责人：${escapeHtml(material.owner||project.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk&&!isNoRisk(material.risk)?`<div class="kanban-card-meta kanban-card-risk">风险：${escapeHtml(material.risk)}</div>`:""}</div>`}})}});
-      kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:true,boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;activateView("manage")},dropEl:(item,target)=>{const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||material.status===status)return;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
+      kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:true,boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;activateView("manage")},dropEl:(item,target)=>{const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||effectiveMaterialStatus(material)===status)return;material.statusOverride=status;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
     }
     function render(){
+      syncMaterialStatuses();
       let focused=projectById(focusedProjectId);
       if(focusedProjectId&&!focused){focusedProjectId="";projectFilter="all";focused=null}
       if(focused)projectFilter=focused.id;
@@ -2776,7 +2810,7 @@
     el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
     el("addScheduleTask").addEventListener("click",()=>{
       const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
-      tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",updatedAt:new Date().toISOString()});
+      tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",statusOverride:"",updatedAt:new Date().toISOString()});
       saveScheduleTasks();renderScheduleEditors();render();
       document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
     });
