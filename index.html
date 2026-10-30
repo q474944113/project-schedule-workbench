@@ -335,8 +335,6 @@
     .app.project-focus details[open] > .manager-summary { border-bottom: 1px solid var(--line); margin-bottom: 10px; }
     .app:not(.project-focus) #materialManagerDetails, .app:not(.project-focus) #scheduleEditorList, .app:not(.project-focus) .schedule-editor-toolbar { display: none; }
     .schedule-row input, .schedule-row select { min-width: 0; padding: 7px 8px; }
-    .weekdays-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
-    .weekdays-toggle input { width: auto; }
     .schedule-empty { padding: 30px; color: var(--muted); text-align: center; }
     .save-status { min-height: 20px; color: var(--green); font-size: 12px; }
     .workspace.duration-mode { grid-template-columns: minmax(0, 1fr); }
@@ -661,7 +659,7 @@
     input[type="checkbox"]:checked { border-color:var(--island-primary-dark); background:var(--island-primary); box-shadow:0 3px 0 var(--island-primary-dark); }
     input[type="checkbox"]:checked::before { transform:translateY(-1px) rotate(-45deg) scale(1); }
     input[type="checkbox"]:active { transform:translateY(1px); box-shadow:0 1px 0 #d4c9b4; }
-    .filter-check, .weekdays-toggle, .material-task-row label { font-weight:600; color:#725d42; }
+    .filter-check, .material-task-row label { font-weight:600; color:#725d42; }
     .status-badge, .priority-badge, .task-status-badge, .type, .project-tag, .alert-level {
       min-height:25px;
       padding:4px 10px;
@@ -1103,7 +1101,7 @@
             <div class="duration-stat"><div class="duration-stat-label">平均每节点</div><div class="duration-stat-value" id="durationAverage">—</div></div>
             <div class="duration-stat"><div class="duration-stat-label">最长节点</div><div class="duration-stat-value" id="durationLongest">—</div></div>
           </div>
-          <div class="duration-help">按当前项目和节点类型统计节点覆盖天数；同一日期有多个节点只计 1 天，实际完成日期优先，勾选“仅工作日”的任务会自动扣除周末。</div>
+          <div class="duration-help">按当前项目和节点类型统计实际工作日天数；同一工作日有多个节点只计 1 天，实际完成日期优先，周末和法定节假日不计入。</div>
           <div id="durationChart" class="duration-chart" aria-live="polite"></div>
         </div>
         <div id="cloudHistoryPanel" class="cloud-history-panel" hidden>
@@ -1585,16 +1583,45 @@
       [3,"2026-10-08","2026-10-08","初稿提交","milestone","提交"]
     ];
     const pad=n=>String(n).padStart(2,"0");
-    const CN_HOLIDAYS_2026=new Set([
-      "2026-01-01","2026-01-02","2026-01-03",
-      "2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23",
-      "2026-04-04","2026-04-05","2026-04-06",
-      "2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05",
-      "2026-06-19","2026-06-20","2026-06-21",
-      "2026-09-25","2026-09-26","2026-09-27",
-      "2026-10-01","2026-10-02","2026-10-03","2026-10-04","2026-10-05","2026-10-06","2026-10-07"
-    ]);
-    const CN_ADJUSTED_WORKDAYS_2026=new Set(["2026-01-04","2026-02-14","2026-02-28","2026-04-26","2026-05-09","2026-09-20","2026-10-10"]);
+    const CN_HOLIDAYS=new Set(),CN_ADJUSTED_WORKDAYS=new Set();
+    const CN_HOLIDAY_CACHE_KEY="project-workbench-cn-holidays-v1";
+    const CN_HOLIDAY_SOURCE="https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master";
+    const CN_HOLIDAY_CACHE_TTL=12*60*60*1000;
+    function readChineseHolidayCache(){try{return JSON.parse(localStorage.getItem(CN_HOLIDAY_CACHE_KEY)||"{}")}catch(_){return{}}}
+    function writeChineseHolidayCache(cache){try{localStorage.setItem(CN_HOLIDAY_CACHE_KEY,JSON.stringify(cache))}catch(_){}}
+    function applyChineseHolidayData(data){
+      (data?.days||[]).forEach(day=>{
+        const date=String(day?.date||"");
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+        CN_HOLIDAYS.delete(date);CN_ADJUSTED_WORKDAYS.delete(date);
+        (day.isOffDay?CN_HOLIDAYS:CN_ADJUSTED_WORKDAYS).add(date);
+      });
+    }
+    async function fetchChineseHolidayYear(year,cache){
+      const saved=cache[year];
+      if(saved?.days)applyChineseHolidayData(saved);
+      if(saved?.days&&Date.now()-Number(saved.fetchedAt||0)<CN_HOLIDAY_CACHE_TTL)return saved;
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+      try{
+        const revision=Math.floor(Date.now()/CN_HOLIDAY_CACHE_TTL);
+        const response=await fetch(`${CN_HOLIDAY_SOURCE}/${year}.json?v=${revision}`,{signal:controller.signal,cache:"no-cache"});
+        if(!response.ok)throw new Error(`HTTP ${response.status}`);
+        const data=await response.json();
+        if(Number(data?.year)!==year||!Array.isArray(data?.days))throw new Error("Invalid holiday data");
+        const record={fetchedAt:Date.now(),year,days:data.days};
+        cache[year]=record;writeChineseHolidayCache(cache);return record;
+      }catch(error){
+        console.warn(`Chinese holiday data unavailable for ${year}`,error);
+        return saved||null;
+      }finally{clearTimeout(timer)}
+    }
+    async function loadChineseHolidayCalendar(){
+      const currentYear=Number(TODAY.slice(0,4)),years=new Set([currentYear-1,currentYear,currentYear+1]);
+      tasks.forEach(task=>[task.start,task.end,task.actualEnd].forEach(value=>{const year=Number(String(value||"").slice(0,4));if(year>=2007&&year<=currentYear+5)years.add(year)}));
+      const cache=readChineseHolidayCache();
+      const records=await Promise.all([...years].sort((a,b)=>a-b).map(year=>fetchChineseHolidayYear(year,cache)));
+      records.filter(Boolean).sort((a,b)=>a.year-b.year).forEach(applyChineseHolidayData);
+    }
     const s3gTasks=rawS3g.map(([direction,start,end,name,type="production",note="制作"])=>({project:"s3g",direction,name,start,end,type,note}));
     const DIRECTION5_MATERIAL_ID="material-s3g-direction-5",DIRECTION5_MIGRATION_KEY="project-workbench-s3g-direction5-v1";
     const DIRECTION5_TASKS=[
@@ -1634,7 +1661,7 @@
     let cloudClient=null,cloudChannel=null,cloudReady=false,cloudApplying=false,cloudSaveTimer=0,lastCloudVersion=0,lastIssuedVersion=0;
     let cloudSnapshots=[],cloudHistoryLoading=false,cloudHistoryExpanded=false;
     function normalizeTask(task,index,prefix="saved"){
-      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),legacyMaterialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),rawMaterialIds=Array.isArray(task.materialIds)?task.materialIds:(legacyMaterialId?[legacyMaterialId]:[]),materialIds=[...new Set(rawMaterialIds.map(value=>String(value||"").trim()).filter(Boolean))],{direction,materialId:ignoredMaterialId,materialIds:ignoredMaterialIds,...base}=task;
+      const isRevision=task.type==="revision"||task.note==="修改",actualEnd=task.actualEnd||"",legacyDirection=Math.max(0,Number(task.direction)||0),legacyMaterialId=String(task.materialId||(task.project==="s3g"&&legacyDirection?`material-s3g-direction-${legacyDirection}`:"")).trim(),rawMaterialIds=Array.isArray(task.materialIds)?task.materialIds:(legacyMaterialId?[legacyMaterialId]:[]),materialIds=[...new Set(rawMaterialIds.map(value=>String(value||"").trim()).filter(Boolean))],{direction,weekdaysOnly:ignoredWeekdaysOnly,materialId:ignoredMaterialId,materialIds:ignoredMaterialIds,...base}=task;
       const legacyStatus=["not_started","in_progress","waiting","completed"].includes(task.status)?task.status:"in_progress",statusOverride=["not_started","in_progress","waiting","completed"].includes(task.statusOverride)?task.statusOverride:legacyStatus==="waiting"?"waiting":"";
       return{...base,actualEnd,id:task.id||`${prefix}-${index+1}`,materialIds,materialId:materialIds[0]||"",submit:isRevision?false:Boolean(task.submit||task.note==="提交"||task.note==="确认"||task.type==="milestone"),type:isRevision?"revision":task.type==="milestone"?"production":task.type,status:actualEnd?"completed":legacyStatus,statusOverride,updatedAt:task.updatedAt||""};
     }
@@ -1915,7 +1942,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:19,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:20,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -1988,7 +2015,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<19||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<20||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -2019,7 +2046,7 @@
     }
     const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
-    const isRestDay=d=>{const key=iso(d);if(CN_ADJUSTED_WORKDAYS_2026.has(key))return false;if(CN_HOLIDAYS_2026.has(key))return true;return d.getDay()===0||d.getDay()===6};
+    const isRestDay=d=>{const key=iso(d);if(CN_ADJUSTED_WORKDAYS.has(key))return false;if(CN_HOLIDAYS.has(key))return true;return d.getDay()===0||d.getDay()===6};
     function projectSearchMatches(project){
       if(!searchFilter)return true;
       const token=searchFilter.toLowerCase();
@@ -2046,7 +2073,7 @@
     const visible=t=>{const project=projectById(t.project),token=searchFilter.toLowerCase(),taskMatch=!token||projectSearchMatches(project)||`${t.name} ${t.note||""}`.toLowerCase().includes(token);return projectMatchesFilters(project,false)&&taskMatch&&(typeFilter==="all"||(typeFilter==="milestone"?t.submit:t.type===typeFilter))};
     const taskDisplayStart=t=>t.actualEnd&&t.actualEnd<t.start?t.actualEnd:t.start;
     const taskDisplayEnd=t=>t.actualEnd||t.end;
-    const activeOn=(t,d)=>{const key=iso(d);return key>=taskDisplayStart(t)&&key<=taskDisplayEnd(t)&&!(t.weekdaysOnly&&isRestDay(d))};
+    const activeOn=(t,d)=>{const key=iso(d);return key>=taskDisplayStart(t)&&key<=taskDisplayEnd(t)&&!isRestDay(d)};
     const taskGanttStart=taskDisplayStart;
     const taskGanttEnd=taskDisplayEnd;
     const ganttActiveOn=activeOn;
@@ -2134,8 +2161,7 @@
         task.type=["revision","supervision","acceptance","packaging"].includes(value)?value:"production";
         const defaultNotes={milestone:"提交",production:"制作",supervision:"监修",acceptance:"验收",packaging:"打包",revision:"修改"};
         if(!task.note||["制作","提交","确认","监修","验收","打包","修改"].includes(task.note))task.note=defaultNotes[value]||"制作";
-      } else if(field==="weekdaysOnly") task.weekdaysOnly=value;
-      else if(field==="project"){task.project=value;task.materialIds=[];task.materialId=""}
+      } else if(field==="project"){task.project=value;task.materialIds=[];task.materialId=""}
       else if(field==="materialIds"){task.materialIds=[...new Set((Array.isArray(value)?value:[]).filter(id=>materials.some(item=>item.id===id&&item.project===task.project)))];task.materialId=task.materialIds[0]||""}
       else if(field==="statusOverride"){task.statusOverride=value==="auto"?"":value;if(task.statusOverride)task.status=task.statusOverride}
       else task[field]=value;
@@ -2306,7 +2332,7 @@
       const focusedMaterial=scheduleMaterialFocusId?materialById(scheduleMaterialFocusId):null;
       const list=visibleTasks().filter(task=>!focusedMaterial||taskAppliesToMaterial(task,focusedMaterial));
       const compact=window.matchMedia("(max-width: 560px)").matches;
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><label class="weekdays-toggle"><input data-task-field="weekdaysOnly" type="checkbox" ${task.weekdaysOnly?"checked":""}>仅工作日</label><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll('.schedule-row [data-task-field="status"]').forEach(control=>{const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;control.dataset.taskField="statusOverride";control.title="默认按预计日期和实际完成时间自动判断；异常时可手动覆盖";control.innerHTML=taskStatusSelectOptions(task)});
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
@@ -2709,11 +2735,11 @@
       const rows=list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed",actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
       el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
     }
-    function taskDuration(task){return dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).length}
+    function taskDuration(task){return dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!isRestDay(date)).length}
     function renderDuration(){
       const list=visibleTasks().map(task=>({...task,duration:taskDuration(task)})).sort((a,b)=>b.duration-a.duration||compareTasks(a,b));
       const coveredDates=new Set();
-      list.forEach(task=>dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!(task.weekdaysOnly&&isRestDay(date))).forEach(date=>coveredDates.add(iso(date))));
+      list.forEach(task=>dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!isRestDay(date)).forEach(date=>coveredDates.add(iso(date))));
       const total=coveredDates.size,summedDuration=list.reduce((sum,task)=>sum+task.duration,0),average=list.length?summedDuration/list.length:0,max=Math.max(1,...list.map(task=>task.duration));
       el("durationTotal").textContent=`${total} 天`;
       el("durationAverage").textContent=list.length?`${average.toFixed(1)} 天`:'—';
@@ -2834,7 +2860,7 @@
     el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
     el("addScheduleTask").addEventListener("click",()=>{
       const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
-      tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",weekdaysOnly:false,submit:false,status:"not_started",statusOverride:"",updatedAt:new Date().toISOString()});
+      tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",submit:false,status:"not_started",statusOverride:"",updatedAt:new Date().toISOString()});
       saveScheduleTasks();renderScheduleEditors();render();
       document.querySelector(`[data-task-id="${id}"] .task-name`)?.select();
     });
@@ -2850,7 +2876,8 @@
     async function bootstrapWorkbench(){
       el("weekLabel").value=defaultWeekLabel();
       await initCloudSync();
-      if(!cloudReady){renderWeeklyEditors();renderReportHistory();setEvaluationDefaults();render();showDetail(parse(TODAY))}
+      await loadChineseHolidayCalendar();
+      renderWeeklyEditors();renderReportHistory();setEvaluationDefaults();render();showDetail(parse(TODAY));
     }
     window.bootstrapWorkbench=bootstrapWorkbench;
   </script>
