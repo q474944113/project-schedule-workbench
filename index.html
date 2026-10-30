@@ -899,6 +899,10 @@
     .access-form button:disabled { opacity:.65; cursor:wait; }
     .access-message { min-height:18px; color:#c45252; font-size:12px; }
     .access-remember { margin-top:16px; color:#6b805f; font-size:11px; font-weight:700; line-height:1.5; }
+    .access-role-badge { display:inline-flex; margin-top:7px; padding:3px 9px; border-radius:999px; background:#fff0dc; color:#a05f22; font-size:10px; font-weight:800; }
+    body.access-viewer .access-role-badge { background:#e8edfb; color:#52679e; }
+    body.access-viewer [data-view="manage"], body.access-viewer #openProjectEditor, body.access-viewer #resetReport, body.access-viewer #saveReportSnapshot, body.access-viewer #clearReportHistory, body.access-viewer .restore-cloud-history, body.access-viewer .copy-detail-task, body.access-viewer .clear-weekly-project, body.access-viewer .delete-history { display:none!important; }
+    body.access-viewer #projectEditors input, body.access-viewer #projectEditors textarea, body.access-viewer #projectEditors select, body.access-viewer #projectEditors .choices, body.access-viewer #weeklyProjectToolbarPicker input, body.access-viewer #weeklyProjectToolbarPicker button, body.access-viewer #weeklyProjectToolbarPicker .choices { pointer-events:none; opacity:.76; }
 
     /* Square and portrait screens: keep the overview dense without squeezing cards into narrow columns. */
     @media (max-aspect-ratio:4/3) {
@@ -976,7 +980,7 @@
       <div class="access-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
       <h1 id="accessTitle">项目排期工作台</h1>
       <div class="access-version">WORKBENCH</div>
-      <p>输入密码，开启今天的排期管理</p>
+      <p>输入管理员密码或普通查看密码</p>
       <form id="accessForm" class="access-form">
         <input id="accessPassword" type="password" inputmode="numeric" autocomplete="current-password" aria-label="访问密码" placeholder="输入密码" required>
         <button id="accessSubmit" type="submit">进入工作台</button>
@@ -997,6 +1001,7 @@
         <h1>项目排期总工作台</h1>
         <div class="sub">多项目统一日历、甘特图与周报管理</div>
         <div id="cloudStatus" class="cloud-status connecting" role="status" aria-live="polite">云端连接中</div>
+        <div id="accessRoleBadge" class="access-role-badge">权限识别中</div>
       </div>
       <div class="controls">
         <div class="tabs" aria-label="视图切换">
@@ -1893,6 +1898,7 @@
     let calendarLandscapeMode=localStorage.getItem(CALENDAR_DISPLAY_KEY)==="compact"?"compact":"detailed";
     let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
+    const canEdit=()=>window.WORKBENCH_ACCESS_ROLE==="admin";
     const calendarAutoCompact=()=>window.innerWidth/window.innerHeight<=1.5;
     function applyCalendarDisplayMode(){
       const automatic=calendarAutoCompact(),compact=automatic||calendarLandscapeMode==="compact",calendar=el("calendar"),toggle=el("calendarModeToggle");
@@ -1937,12 +1943,13 @@
       return true;
     }
     function scheduleCloudSave(){
-      if(cloudApplying)return;
+      if(cloudApplying||!canEdit())return;
       clearTimeout(cloudSaveTimer);
       setCloudStatus("connecting");
       cloudSaveTimer=setTimeout(saveCloudState,CLOUD_SAVE_DELAY);
     }
     async function saveCloudState(){
+      if(!canEdit())return;
       if(!cloudClient||!cloudReady)return setCloudStatus("failed");
       const version=Math.max(Date.now(),lastCloudVersion+1,lastIssuedVersion+1);
       lastIssuedVersion=version;
@@ -2060,6 +2067,7 @@
     const projectById=id=>projects.find(project=>project.id===id);
     const setActiveViewTab=view=>document.querySelectorAll("[data-view]").forEach(tab=>tab.classList.toggle("active",tab.dataset.view===view));
     function activateView(view){
+      if(!canEdit()&&view==="manage")view="calendar";
       if(focusedProjectId&&view==="overview")return exitProjectWorkspace();
       if(focusedProjectId&&view==="weekly")view="calendar";
       currentView=view;
@@ -2511,7 +2519,7 @@
       list.innerHTML=[...reportHistory].sort(historySort).map(item=>`<article class="archive-item" data-history-id="${escapeHtml(item.id)}"><div><div class="archive-period">${escapeHtml(item.period||`${formatFullDate(item.start)}—${formatFullDate(item.end)}`)}</div><div class="archive-meta">${item.projects?.length||0} 个项目 · ${escapeHtml(item.source||`保存于 ${new Date(item.savedAt).toLocaleString("zh-CN",{hour12:false})}`)}</div></div><div class="archive-actions"><button type="button" class="load-history">载入</button><button type="button" class="delete-history ghost-danger">删除</button></div></article>`).join("");
       document.querySelectorAll(".load-history").forEach(button=>button.addEventListener("click",()=>{
         const item=reportHistory.find(entry=>entry.id===button.closest(".archive-item").dataset.historyId);if(!item)return;
-        weeklyProjects=normalizeWeeklyProjects(item.projects||[],projects);saveWeeklyProjects();el("weekLabel").value=item.period||"";renderWeeklyEditors();generateWeeklyReport();
+        weeklyProjects=normalizeWeeklyProjects(item.projects||[],projects);if(canEdit())saveWeeklyProjects();el("weekLabel").value=item.period||"";renderWeeklyEditors();generateWeeklyReport();
         el("copyStatus").textContent="已载入历史预览，可继续编辑。";setTimeout(()=>el("copyStatus").textContent="",2200);
       }));
       document.querySelectorAll(".delete-history").forEach(button=>button.addEventListener("click",()=>{
@@ -2664,6 +2672,7 @@
       document.querySelectorAll(".copy-detail-task").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();const task=tasks.find(item=>item.id===button.dataset.taskId);if(task)duplicateTask(task)}));
       document.querySelectorAll(".material-task-toggle").forEach(input=>input.addEventListener("change",event=>{event.stopPropagation();toggleMaterialTask(input.dataset.materialId,input.dataset.taskId,input.checked);render();showDetail(date)}));
       if(currentView==="calendar")setDetailDrawerOpen(true);
+      applyWorkbenchAccessMode();
     }
     function renderCalendar(){
       const year=currentYear,first=new Date(year,currentMonth,1),last=new Date(year,currentMonth+1,0),cells=[],monthDays=[],weekdayHasContent=Array(7).fill(false),calendarTasks=visibleTasks();
@@ -2678,14 +2687,14 @@
       weekdays.forEach(x=>cells.push(`<div class="weekday">${x}</div>`));
       for(let i=0;i<first.getDay();i++)cells.push('<div class="day outside"></div>');
       monthDays.forEach(({day,date,key,items})=>{
-        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.length?`<span class="calendar-day-marker" aria-label="当天 ${items.length} 项排期">${items.length}</span>`:""}${items.map(t=>{const delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed";return`<button type="button" draggable="${completed?"false":"true"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
+        cells.push(`<div class="day ${isRestDay(date)?"weekend":""} ${key===TODAY?"today":""}" data-date="${key}"><div class="date-row"><span>${day}</span>${items.length?`<span class="count">${items.length} 项</span>`:""}</div>${items.length?`<span class="calendar-day-marker" aria-label="当天 ${items.length} 项排期">${items.length}</span>`:""}${items.map(t=>{const delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed";return`<button type="button" draggable="${canEdit()&&!completed?"true":"false"}" class="event ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""}" style="box-shadow:inset -3px 0 0 ${projectColor(t.project)}" data-task-id="${escapeHtml(t.id)}" data-event-date="${key}">${delay?`延期${delay}天 · `:""}${escapeHtml(calendarTaskLabel(t))}</button>`}).join("")}</div>`);
       });
       calendar.innerHTML=cells.join("");el("viewTitle").textContent=`${year} 年 ${currentMonth+1} 月`;
       document.querySelectorAll(".day[data-date]").forEach(dayCell=>{
         dayCell.addEventListener("click",()=>showDetail(parse(dayCell.dataset.date)));
         dayCell.addEventListener("dragover",event=>{event.preventDefault();event.dataTransfer.dropEffect=event.altKey||dragCopy?"copy":"move";dayCell.classList.add("drag-over")});
         dayCell.addEventListener("dragleave",event=>{if(!dayCell.contains(event.relatedTarget))dayCell.classList.remove("drag-over")});
-        dayCell.addEventListener("drop",event=>{event.preventDefault();dayCell.classList.remove("drag-over");const task=tasks.find(item=>item.id===draggedTaskId);if(!task)return;const copy=event.altKey||dragCopy,target=parse(dayCell.dataset.date);target.setDate(target.getDate()-dragDayOffset);draggedTaskId="";dragCopy=false;dragDayOffset=0;placeTask(task,iso(target),copy)});
+        dayCell.addEventListener("drop",event=>{event.preventDefault();dayCell.classList.remove("drag-over");if(!canEdit())return;const task=tasks.find(item=>item.id===draggedTaskId);if(!task)return;const copy=event.altKey||dragCopy,target=parse(dayCell.dataset.date);target.setDate(target.getDate()-dragDayOffset);draggedTaskId="";dragCopy=false;dragDayOffset=0;placeTask(task,iso(target),copy)});
       });
       document.querySelectorAll(".event[data-task-id]").forEach(eventNode=>{
         eventNode.addEventListener("click",event=>{event.stopPropagation();showDetail(parse(eventNode.dataset.eventDate))});
@@ -2725,7 +2734,21 @@
         return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk}`.toLowerCase().includes(token);
       });
       const boards=statusIds.map(status=>{const items=list.filter(material=>material.status===status),units=materialUnitCount(items);return{id:status,title:`${materialStatusNames[status]} · ${items.length} 项${units!==items.length?` · ${units} 份`:""}`,dragTo:statusIds,item:items.map(material=>{const project=projectById(material.project),node=materialCurrentNode(material),assetType=materialAssetTypeNames[material.assetType]||"未分类",versions=materialVersionNames(material),versionCount=materialVersionCount(material);return{id:material.id,title:`<div class="kanban-card"><div class="kanban-card-head"><span class="kanban-card-name">${escapeHtml(material.name)}${versionCount>1?`<span class="material-version-badge">${versionCount} 版</span>`:""}</span><span class="kanban-card-project" style="color:${projectColor(project.id)};background:${projectTint(project.id)}">${escapeHtml(project.name)}</span></div>${versions.length?`<div class="kanban-card-meta">版本：${escapeHtml(versions.join("、"))}</div>`:""}<div class="kanban-card-meta">${escapeHtml(assetType)} · 当前：${escapeHtml(node.label)}${node.task?` · ${escapeHtml(node.task.name)}`:""}</div><div class="kanban-card-meta">负责人：${escapeHtml(material.owner||project.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk&&!isNoRisk(material.risk)?`<div class="kanban-card-meta kanban-card-risk">风险：${escapeHtml(material.risk)}</div>`:""}</div>`}})}});
-      kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:true,boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;activateView("manage")},dropEl:(item,target)=>{const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||effectiveMaterialStatus(material)===status)return;material.statusOverride=status;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
+      kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:canEdit(),boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;if(canEdit())activateView("manage")},dropEl:(item,target)=>{if(!canEdit())return;const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||effectiveMaterialStatus(material)===status)return;material.statusOverride=status;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
+    }
+    function applyWorkbenchAccessMode(){
+      const editable=canEdit(),badge=el("accessRoleBadge"),manageTab=document.querySelector('[data-view="manage"]');
+      document.body.classList.toggle("access-viewer",!editable);
+      document.body.classList.toggle("access-admin",editable);
+      if(badge)badge.textContent=editable?"管理员权限":"普通查看权限";
+      if(manageTab)manageTab.hidden=!editable;
+      if(el("openProjectEditor"))el("openProjectEditor").hidden=!editable;
+      document.querySelectorAll("#scheduleEditorPanel input,#scheduleEditorPanel select,#scheduleEditorPanel textarea,#scheduleEditorPanel button,#projectEditors input,#projectEditors select,#projectEditors textarea,#projectEditors button,#weeklyProjectToolbarPicker input,#weeklyProjectToolbarPicker select,#weeklyProjectToolbarPicker button,#weekLabel,#resetReport,#saveReportSnapshot,#clearReportHistory,.delete-history,.restore-cloud-history,.material-task-toggle").forEach(control=>control.disabled=!editable);
+      document.querySelectorAll(".event").forEach(eventNode=>{
+        const task=tasks.find(item=>item.id===eventNode.dataset.taskId);
+        eventNode.draggable=Boolean(editable&&task&&taskEffectiveStatus(task)!=="completed");
+      });
+      if(el("dragHelp")&&!editable)el("dragHelp").textContent="当前为普通查看权限：可查看日历与详情，不可拖动或编辑节点。";
     }
     function render(){
       syncMaterialStatuses();
@@ -2783,6 +2806,7 @@
       if(currentView==="weekly"){el("viewTitle").textContent="每周项目进度汇报";generateWeeklyReport()}
       if(focused&&currentView!=="overview")el("viewTitle").textContent=focused.name+" · "+el("viewTitle").textContent;
       setActiveViewTab(currentView);
+      applyWorkbenchAccessMode();
     }
     document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>activateView(button.dataset.view)));
     document.querySelector(".utility-nav-item")?.addEventListener("pointerup",event=>event.currentTarget.blur());
@@ -2832,26 +2856,32 @@
   </script>
   <script>
     (() => {
-      const ACCESS_STORAGE_KEY="project-workbench-access-v1";
-      const ACCESS_PASSWORD_HASH="e5b7ff8fbf8a82e170767733f7a9bb426bb7f59f1df6f5de103581435e26fc14";
+      const ACCESS_STORAGE_KEY="project-workbench-access-v2";
+      const LEGACY_ACCESS_STORAGE_KEY="project-workbench-access-v1";
+      const ACCESS_PASSWORD_HASHES={admin:"e5b7ff8fbf8a82e170767733f7a9bb426bb7f59f1df6f5de103581435e26fc14",viewer:"891487343a933bd8c85fa4ce68bf214fef1bee1422583da7a33ed67885c69753"};
       const gate=document.getElementById("accessGate"),form=document.getElementById("accessForm"),input=document.getElementById("accessPassword"),button=document.getElementById("accessSubmit"),message=document.getElementById("accessMessage");
       let started=false;
-      const storedAccess=()=>{try{return localStorage.getItem(ACCESS_STORAGE_KEY)}catch(_){return""}};
-      const rememberAccess=()=>{try{localStorage.setItem(ACCESS_STORAGE_KEY,ACCESS_PASSWORD_HASH)}catch(_){}};
-      const clearAccess=()=>{try{localStorage.removeItem(ACCESS_STORAGE_KEY)}catch(_){}};
+      const storedAccess=()=>{try{const value=JSON.parse(localStorage.getItem(ACCESS_STORAGE_KEY)||"null");return value&&ACCESS_PASSWORD_HASHES[value.role]===value.token?value:null}catch(_){return null}};
+      const rememberAccess=role=>{try{localStorage.setItem(ACCESS_STORAGE_KEY,JSON.stringify({role,token:ACCESS_PASSWORD_HASHES[role]}));localStorage.removeItem(LEGACY_ACCESS_STORAGE_KEY)}catch(_){}};
+      const clearAccess=()=>{try{localStorage.removeItem(ACCESS_STORAGE_KEY);localStorage.removeItem(LEGACY_ACCESS_STORAGE_KEY)}catch(_){}};
       const sha256=async value=>{const data=new TextEncoder().encode(value),hash=await crypto.subtle.digest("SHA-256",data);return[...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,"0")).join("")};
-      const unlock=()=>{
+      const unlock=role=>{
+        window.WORKBENCH_ACCESS_ROLE=role;
         document.body.classList.remove("access-locked");
+        document.body.classList.toggle("access-admin",role==="admin");
+        document.body.classList.toggle("access-viewer",role==="viewer");
         document.body.classList.add("access-granted");
         gate.hidden=true;
         if(!started){started=true;window.bootstrapWorkbench?.()}
       };
-      if(storedAccess()===ACCESS_PASSWORD_HASH)unlock();
+      const remembered=storedAccess();
+      if(remembered)unlock(remembered.role);
       else requestAnimationFrame(()=>input.focus());
       form.addEventListener("submit",async event=>{
         event.preventDefault();message.textContent="";button.disabled=true;button.textContent="验证中…";
         try{
-          if(await sha256(input.value)===ACCESS_PASSWORD_HASH){rememberAccess();input.value="";unlock()}
+          const hash=await sha256(input.value),role=hash===ACCESS_PASSWORD_HASHES.admin?"admin":hash===ACCESS_PASSWORD_HASHES.viewer?"viewer":"";
+          if(role){rememberAccess(role);input.value="";unlock(role)}
           else{message.textContent="密码错误，请重新输入。";input.select()}
         }catch(_){message.textContent="当前浏览器无法完成验证，请更换浏览器重试。"}
         finally{button.disabled=false;button.textContent="进入工作台"}
