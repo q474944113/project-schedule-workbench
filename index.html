@@ -260,6 +260,10 @@
     .material-manager-list { display: grid; gap: 8px; margin-top: 10px; }
     .material-manager-item { display: grid; grid-template-columns: 140px minmax(150px,1fr) 110px minmax(120px,.7fr) minmax(120px,.7fr) 110px minmax(150px,1fr) auto; gap: 7px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
     .material-manager-item input, .material-manager-item select { min-width: 0; }
+    .material-followup-editor { grid-column: 1 / -1; display: grid; grid-template-columns: auto 150px 150px minmax(180px,1fr) auto; gap: 7px; align-items: center; padding: 8px 10px; border: 1px solid #c8ded8; border-radius: 12px; background: #eef8f5; }
+    .material-followup-label { color: #42766f; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .material-followup-note { min-width: 0; }
+    .material-followup-clear { white-space: nowrap; }
     .material-version-editor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 12px; background: #f7f3df; }
     .material-version-label { color: #725d42; font-size: 12px; font-weight: 700; }
     .material-version-tags { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -377,8 +381,10 @@
     .overview-box { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
     .alert-list, .workload-list, .cloud-history-list { display: grid; gap: 7px; }
     .alert-item, .workload-item, .cloud-history-item { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-    .alert-item { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: start; }
+    .alert-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; align-items: start; }
     .alert-level { padding: 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .alert-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .alert-actions button { min-height: 28px; padding: 5px 9px; font-size: 11px; white-space: nowrap; }
     .workload-item { display: grid; grid-template-columns: minmax(90px,1fr) auto auto auto; gap: 8px; align-items: center; }
     .cloud-history-list { max-height: 360px; overflow-y: auto; }
     .cloud-history-item { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
@@ -434,6 +440,8 @@
       .schedule-row-fields { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
       .project-create, .project-manager-item, .material-create, .material-manager-item { grid-template-columns: 1fr; }
       .app.project-focus .material-create, .app.project-focus .material-manager-item { grid-template-columns: 1fr; }
+      .material-followup-editor { grid-template-columns: 1fr 1fr; }
+      .material-followup-label, .material-followup-note { grid-column: 1 / -1; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
       .overview-grid { grid-template-columns: 1fr; }
     }
@@ -749,6 +757,10 @@
       input[type="checkbox"] { width:22px; height:22px; min-width:22px; }
       .schedule-empty, .archive-empty, .empty-state, .detail-empty { margin:6px; padding:28px 16px; }
       .status-badge, .priority-badge, .task-status-badge, .type, .project-tag, .alert-level { min-height:23px; padding:3px 8px; }
+      .material-followup-editor { grid-template-columns: 1fr; }
+      .material-followup-label, .material-followup-note { grid-column: auto; }
+      .alert-item { grid-template-columns: auto minmax(0,1fr); }
+      .alert-actions { grid-column: 1 / -1; justify-content: flex-start; }
       button.material-mini-card:hover, button.material-node-card:hover { transform:none; }
     }    /* Animal Island custom Select replica: the native select remains the data/event source. */
     .island-select-wrap { display:grid; min-width:0; max-width:100%; vertical-align:middle; }
@@ -1083,7 +1095,7 @@
           </section>
           <section class="overview-section overview-grid">
             <details class="overview-box overview-alerts">
-              <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">仅提醒未完成延期、今日到期及未来提交节点</div></div><span id="alertCount" class="archive-help"></span></summary>
+              <summary class="overview-section-head overview-history-summary"><div><h3>风险与到期提醒</h3><div class="archive-help">提醒未完成延期、今日到期、未来提交节点及到期跟进事项</div></div><span id="alertCount" class="archive-help"></span></summary>
               <div id="alertList" class="alert-list"></div>
             </details>
             <details class="overview-box overview-workload">
@@ -1704,6 +1716,8 @@
     let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
     let projects=loadProjects(tasks);
     const materialStatusNames={not_started:"未开始",production:"进行中",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
+    const materialFollowUpTypeNames={none:"不提醒",ad_review:"等待广告审核",asset_wait:"等待素材提供",client_feedback:"等待客户反馈",other:"其他卡点"};
+    const normalizeFollowUpDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||"").trim())?String(value).trim():"";
     const normalizeMaterialVersions=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(item=>String(item||"").trim().slice(0,30)).filter(Boolean))].slice(0,20);
     const materialVersionCount=material=>Math.max(1,normalizeMaterialVersions(material?.versions).length);
     const materialVersionNames=material=>normalizeMaterialVersions(material?.versions);
@@ -1711,7 +1725,7 @@
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
-      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,assetType:"unclassified",versions:[],owner:project.owner||"",contact:project.contact||"",status:"not_started",statusOverride:"",completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:""}));
+      return["创意试玩 A","创意试玩 B","创意试玩 C","迭代试玩 D"].map((name,index)=>({id:`material-${project.id}-${index+1}`,project:project.id,name,assetType:"unclassified",versions:[],owner:project.owner||"",contact:project.contact||"",status:"not_started",statusOverride:"",completedTaskIds:[],incompleteTaskIds:[],risk:"",followUpType:"none",followUpDate:"",followUpNote:"",updatedAt:""}));
     }
     function normalizeMaterials(items,projectList,taskList,seedMissing=false){
       const validProjects=new Set(projectList.map(project=>project.id)),validTasksByProject=new Map(),seen=new Set(),result=[];
@@ -1723,7 +1737,7 @@
         seen.add(id);
         const validTaskIds=validTasksByProject.get(project)||new Set();
         const legacyStatus=Object.prototype.hasOwnProperty.call(materialStatusNames,item.status)?item.status:"not_started",statusOverride=Object.prototype.hasOwnProperty.call(materialStatusNames,item.statusOverride)?item.statusOverride:["pending_feedback","revision"].includes(legacyStatus)?legacyStatus:"";
-        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,assetType:Object.prototype.hasOwnProperty.call(materialAssetTypeNames,item.assetType)?item.assetType:"unclassified",versions:normalizeMaterialVersions(item.versions),owner:normalizePersonSelection(item.owner),contact:normalizePersonSelection(item.contact),status:legacyStatus,statusOverride,completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),updatedAt:item.updatedAt||""});
+        result.push({id,project,name:String(item.name||`子素材 ${index+1}`).trim()||`子素材 ${index+1}`,assetType:Object.prototype.hasOwnProperty.call(materialAssetTypeNames,item.assetType)?item.assetType:"unclassified",versions:normalizeMaterialVersions(item.versions),owner:normalizePersonSelection(item.owner),contact:normalizePersonSelection(item.contact),status:legacyStatus,statusOverride,completedTaskIds:[...new Set(Array.isArray(item.completedTaskIds)?item.completedTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],incompleteTaskIds:[...new Set(Array.isArray(item.incompleteTaskIds)?item.incompleteTaskIds.filter(taskId=>validTaskIds.has(taskId)):[])],risk:String(item.risk||"").trim(),followUpType:Object.prototype.hasOwnProperty.call(materialFollowUpTypeNames,item.followUpType)?item.followUpType:"none",followUpDate:normalizeFollowUpDate(item.followUpDate),followUpNote:String(item.followUpNote||"").trim().slice(0,160),updatedAt:item.updatedAt||""});
       });
       if(seedMissing)defaultMaterials(projectList).forEach(item=>{if(!seen.has(item.id))result.push(item)});
       return result;
@@ -1942,7 +1956,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:20,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:21,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -2015,7 +2029,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<20||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.followUpType===undefined||item.followUpDate===undefined||item.followUpNote===undefined||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<21||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -2268,24 +2282,26 @@
       window.syncPersonChoices?.(owner);window.syncPersonChoices?.(contact);
     }
     function materialVersionEditorMarkup(material){const versions=materialVersionNames(material);return`<div class="material-version-editor"><span class="material-version-label">版本</span><div class="material-version-tags">${versions.length?versions.map(version=>`<span class="material-version-chip">${escapeHtml(version)}<button type="button" class="remove-material-version" data-version="${escapeHtml(version)}" aria-label="移除${escapeHtml(version)}">×</button></span>`).join(""):'<span class="material-version-default">默认版</span>'}</div><div class="material-version-entry"><input type="text" class="material-version-input" maxlength="60" placeholder="添加版本，如 A版、B版"><button type="button" class="add-material-version">＋ 添加版本</button></div><span class="material-version-count">计 ${materialVersionCount(material)} 份素材</span></div>`}
+    function materialFollowUpEditorMarkup(material){const active=material.followUpType!=="none"||material.followUpDate||material.followUpNote;return`<div class="material-followup-editor"><span class="material-followup-label">跟进提醒</span><select data-material-field="followUpType" aria-label="卡点类型">${Object.entries(materialFollowUpTypeNames).map(([value,label])=>`<option value="${value}" ${material.followUpType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="followUpDate" type="date" value="${escapeHtml(material.followUpDate)}" aria-label="下次跟进日期"><input data-material-field="followUpNote" class="material-followup-note" type="text" maxlength="160" value="${escapeHtml(material.followUpNote)}" placeholder="跟进备注，如已提交审核，等待平台反馈"><button type="button" class="material-followup-clear ghost-danger" ${active?"":"disabled"}>清除跟进</button></div>`}
     function renderMaterialManager(){
       const focused=projectById(focusedProjectId),managerMaterials=focused?materialsForProject(focused.id):materials;
       const select=el("newMaterialProject"),selected=focused?.id||select.value||((projectFilter!=="all"&&projectById(projectFilter))?projectFilter:projects[0]?.id||"");
       select.innerHTML=focused?`<option value="${escapeHtml(focused.id)}">${escapeHtml(focused.name)}</option>`:projectSelectOptions(selected);if(projectById(selected))select.value=selected;
       applyNewMaterialDefaults(false);
       const managerUnits=materialUnitCount(managerMaterials);el("materialManagerCount").textContent=`${managerMaterials.length} 条子素材${managerUnits!==managerMaterials.length?` · ${managerUnits} 份素材`:""}`;
-      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" data-person-combobox="owner" type="text" maxlength="120" value="${escapeHtml(material.owner)}" placeholder="负责人（可多选）"><input data-material-field="contact" data-person-combobox="contact" type="text" maxlength="120" value="${escapeHtml(material.contact)}" placeholder="客户对接人（可多选）"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span>${materialVersionEditorMarkup(material)}</div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
+      el("materialManagerList").innerHTML=managerMaterials.length?managerMaterials.map(material=>{const progress=materialOverallProgress(material);return`<div class="material-manager-item" data-material-id="${escapeHtml(material.id)}"><select data-material-field="project" aria-label="所属项目">${projectSelectOptions(material.project)}</select><input data-material-field="name" type="text" maxlength="50" value="${escapeHtml(material.name)}" placeholder="子素材名称"><select data-material-field="assetType" aria-label="素材类型">${Object.entries(materialAssetTypeNames).map(([value,label])=>`<option value="${value}" ${material.assetType===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="owner" data-person-combobox="owner" type="text" maxlength="120" value="${escapeHtml(material.owner)}" placeholder="负责人（可多选）"><input data-material-field="contact" data-person-combobox="contact" type="text" maxlength="120" value="${escapeHtml(material.contact)}" placeholder="客户对接人（可多选）"><select data-material-field="status" aria-label="子素材状态">${Object.entries(materialStatusNames).map(([value,label])=>`<option value="${value}" ${material.status===value?"selected":""}>${label}</option>`).join("")}</select><input data-material-field="risk" type="text" maxlength="120" value="${escapeHtml(material.risk)}" placeholder="风险／备注"><span><span class="project-manager-count">${progress.completed}/${progress.total} 节点正常 · ${progress.percent}%</span> <button type="button" class="delete-material ghost-danger">删除</button></span>${materialVersionEditorMarkup(material)}${materialFollowUpEditorMarkup(material)}</div>`}).join(""):'<div class="schedule-empty">暂无子素材；仅在一个项目包含多条并行素材时添加即可。</div>';
       managerMaterials.forEach(material=>{const row=document.querySelector(`.material-manager-item[data-material-id="${CSS.escape(material.id)}"]`),statusControl=row?.querySelector('[data-material-field="status"]');if(!statusControl)return;statusControl.dataset.materialField="statusOverride";statusControl.title="默认按关联排期及实际完成时间自动判断；异常时可手动覆盖";statusControl.innerHTML=materialStatusSelectOptions(material)});
       document.querySelectorAll("[data-material-field]").forEach(control=>control.addEventListener("change",()=>{
         const material=materials.find(item=>item.id===control.closest(".material-manager-item").dataset.materialId);if(!material)return;
         const field=control.dataset.materialField,rawValue=control.value.trim(),value=["owner","contact"].includes(field)?normalizePersonSelection(rawValue):rawValue;
-        if(field==="project"){tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else if(field==="statusOverride"){material.statusOverride=value==="auto"?"":value;if(material.statusOverride)material.status=material.statusOverride}else material[field]=value;
+        if(field==="project"){tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});material.project=value;material.completedTaskIds=[];material.incompleteTaskIds=[];const parent=projectById(value);if(!material.owner)material.owner=parent?.owner||"";if(!material.contact)material.contact=parent?.contact||"";saveScheduleTasks()}else if(field==="statusOverride"){material.statusOverride=value==="auto"?"":value;if(material.statusOverride)material.status=material.statusOverride}else if(field==="followUpType"){material.followUpType=Object.prototype.hasOwnProperty.call(materialFollowUpTypeNames,value)?value:"none";if(material.followUpType==="none"){material.followUpDate="";material.followUpNote=""}}else if(field==="followUpDate")material.followUpDate=normalizeFollowUpDate(value);else material[field]=value;
         material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY));
       }));
       const addVersion=editor=>{const material=materials.find(item=>item.id===editor.closest(".material-manager-item").dataset.materialId),input=editor.querySelector(".material-version-input"),values=normalizeMaterialVersions(input.value);if(!material||!values.length){input.focus();return}material.versions=normalizeMaterialVersions([...materialVersionNames(material),...values]);material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY))};
       document.querySelectorAll(".add-material-version").forEach(button=>button.addEventListener("click",()=>addVersion(button.closest(".material-version-editor"))));
       document.querySelectorAll(".material-version-input").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addVersion(input.closest(".material-version-editor"))}}));
       document.querySelectorAll(".remove-material-version").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material)return;material.versions=materialVersionNames(material).filter(version=>version!==button.dataset.version);material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY))}));
+      document.querySelectorAll(".material-followup-clear").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material)return;material.followUpType="none";material.followUpDate="";material.followUpNote="";material.updatedAt=new Date().toISOString();saveMaterials();render();showDetail(parse(TODAY))}));
       document.querySelectorAll(".delete-material").forEach(button=>button.addEventListener("click",()=>{const material=materials.find(item=>item.id===button.closest(".material-manager-item").dataset.materialId);if(!material||!confirm(`确认删除子素材“${material.name}”吗？关联节点会自动移除该素材。`))return;tasks.forEach(task=>{const ids=taskMaterialIds(task).filter(id=>id!==material.id);task.materialIds=ids;task.materialId=ids[0]||""});materials=materials.filter(item=>item.id!==material.id);saveScheduleTasks();saveMaterials();render();showDetail(parse(TODAY))}));
     }
     function addMaterial(){
@@ -2294,7 +2310,7 @@
       if(!projectById(project))return alert("请先选择所属项目。");
       const parent=projectById(project);
       const selectedStatus=el("newMaterialStatus").value,statusOverride=selectedStatus==="auto"?"":selectedStatus;
-      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,versions:[],owner:normalizePersonSelection(el("newMaterialOwner").value)||parent?.owner||"",contact:normalizePersonSelection(el("newMaterialContact").value)||parent?.contact||"",status:statusOverride||"not_started",statusOverride,completedTaskIds:[],incompleteTaskIds:[],risk:"",updatedAt:new Date().toISOString()});
+      materials.push({id:`material-${Date.now()}-${Math.random().toString(16).slice(2)}`,project,name,assetType:el("newMaterialType").value,versions:[],owner:normalizePersonSelection(el("newMaterialOwner").value)||parent?.owner||"",contact:normalizePersonSelection(el("newMaterialContact").value)||parent?.contact||"",status:statusOverride||"not_started",statusOverride,completedTaskIds:[],incompleteTaskIds:[],risk:"",followUpType:"none",followUpDate:"",followUpNote:"",updatedAt:new Date().toISOString()});
       el("newMaterialName").value="";el("newMaterialType").value="unclassified";el("newMaterialStatus").value="auto";el("newMaterialOwner").value=parent?.owner||"";el("newMaterialContact").value=parent?.contact||"";window.syncPersonChoices?.(el("newMaterialOwner"));window.syncPersonChoices?.(el("newMaterialContact"));saveMaterials();render();
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
@@ -2628,6 +2644,16 @@
         if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
         else if(days>0&&task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
       });
+      const token=searchFilter.toLowerCase();
+      materials.forEach(material=>{
+        const project=projectById(material.project),typeLabel=materialFollowUpTypeNames[material.followUpType]||"";
+        if(!project||!projectMatchesFilters(project,false)||material.followUpType==="none"||!material.followUpDate)return;
+        if(token&&!projectSearchMatches(project)&&!`${material.name} ${material.owner} ${material.contact} ${material.risk} ${material.followUpNote} ${typeLabel}`.toLowerCase().includes(token))return;
+        const days=Math.round((parse(material.followUpDate)-today)/86400000);
+        if(days>0)return;
+        const overdue=Math.abs(days),owner=material.owner||project.owner||"未填写";
+        alerts.push({level:days<0?"high":"medium",materialId:material.id,title:`${project.name} · ${material.name} · ${typeLabel}${days<0?`（逾期 ${overdue} 天）`:"（今日跟进）"}`,detail:`${material.followUpNote?material.followUpNote+" · ":""}负责人：${owner} · 跟进日期：${formatDate(material.followUpDate)}。`});
+      });
       return alerts;
     }
     function renderOverview(){
@@ -2650,9 +2676,11 @@
       document.querySelectorAll(".open-material-node").forEach(card=>card.addEventListener("click",()=>{enterProjectWorkspace(card.dataset.projectId);scheduleMaterialFocusId=card.dataset.materialId;activateView("manage")}));
       const alerts=buildAlerts();
       el("alertCount").textContent=`${alerts.length} 项`;
-      el("alertList").innerHTML=alerts.length?alerts.map(item=>`<div class="alert-item"><span class="alert-level ${item.level}">${item.level==="high"?"重点":"提醒"}</span><div><strong>${escapeHtml(item.title)}</strong><div class="history-meta">${escapeHtml(item.detail)}</div></div></div>`).join(""):'<div class="empty-state">当前没有需要提醒的事项。</div>';
+      el("alertList").innerHTML=alerts.length?alerts.map(item=>`<div class="alert-item"><span class="alert-level ${item.level}">${item.level==="high"?"重点":"提醒"}</span><div><strong>${escapeHtml(item.title)}</strong><div class="history-meta">${escapeHtml(item.detail)}</div></div>${item.materialId&&canEdit()?`<div class="alert-actions"><button type="button" class="complete-followup" data-material-id="${escapeHtml(item.materialId)}">完成跟进</button><button type="button" class="postpone-followup" data-material-id="${escapeHtml(item.materialId)}">顺延 1 天</button></div>`:""}</div>`).join(""):'<div class="empty-state">当前没有需要提醒的事项。</div>';
+      document.querySelectorAll(".complete-followup").forEach(button=>button.addEventListener("click",()=>{const material=materialById(button.dataset.materialId);if(!material||!canEdit())return;material.followUpType="none";material.followUpDate="";material.followUpNote="";material.updatedAt=new Date().toISOString();saveMaterials();render()}));
+      document.querySelectorAll(".postpone-followup").forEach(button=>button.addEventListener("click",()=>{const material=materialById(button.dataset.materialId);if(!material||!canEdit())return;const today=parse(iso(new Date())),current=material.followUpDate?parse(material.followUpDate):today,base=current>today?current:today;base.setDate(base.getDate()+1);material.followUpDate=iso(base);material.updatedAt=new Date().toISOString();saveMaterials();render()}));
       const workload=new Map(),token=searchFilter.toLowerCase();
-      materials.filter(material=>{const project=projectById(material.project);if(!projectMatchesFilters(project,false))return false;return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk}`.toLowerCase().includes(token)}).forEach(material=>{const project=projectById(material.project),owners=personSelectionList(material.owner||project?.owner||""),units=materialVersionCount(material);(owners.length?owners:["未分配"]).forEach(owner=>{if(!workload.has(owner))workload.set(owner,{total:0,active:0,completed:0,abnormal:0});const item=workload.get(owner);item.total+=units;if(material.status==="completed")item.completed+=units;else item.active+=units;if(material.incompleteTaskIds.length||!isNoRisk(material.risk))item.abnormal+=units})});
+      materials.filter(material=>{const project=projectById(material.project);if(!projectMatchesFilters(project,false))return false;return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk} ${material.followUpNote} ${materialFollowUpTypeNames[material.followUpType]||""}`.toLowerCase().includes(token)}).forEach(material=>{const project=projectById(material.project),owners=personSelectionList(material.owner||project?.owner||""),units=materialVersionCount(material);(owners.length?owners:["未分配"]).forEach(owner=>{if(!workload.has(owner))workload.set(owner,{total:0,active:0,completed:0,abnormal:0});const item=workload.get(owner);item.total+=units;if(material.status==="completed")item.completed+=units;else item.active+=units;if(material.incompleteTaskIds.length||!isNoRisk(material.risk))item.abnormal+=units})});
       const workloadItems=[...workload.entries()].sort((a,b)=>b[1].total-a[1].total||a[0].localeCompare(b[0],"zh-CN"));
       el("workloadList").innerHTML=workloadItems.length?workloadItems.map(([owner,item])=>`<div class="workload-item"><strong>${escapeHtml(owner)}</strong><span>子素材 ${item.total}</span><span>进行中 ${item.active} · 已完成 ${item.completed}</span><span>${item.abnormal?`异常 ${item.abnormal}`:"无异常"}</span></div>`).join(""):'<div class="empty-state">当前筛选下没有子素材负责人数据。</div>';
       renderCloudHistory();
@@ -2768,7 +2796,7 @@
         const project=projectById(material.project);if(!project)return false;
         if(focused&&material.project!==focused.id)return false;
         if(!projectMatchesFilters(project,false))return false;
-        return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk}`.toLowerCase().includes(token);
+        return !token||projectSearchMatches(project)||`${material.name} ${materialVersionNames(material).join(" ")} ${material.owner} ${material.contact} ${material.risk} ${material.followUpNote} ${materialFollowUpTypeNames[material.followUpType]||""}`.toLowerCase().includes(token);
       });
       const boards=statusIds.map(status=>{const items=list.filter(material=>material.status===status),units=materialUnitCount(items);return{id:status,title:`${materialStatusNames[status]} · ${items.length} 项${units!==items.length?` · ${units} 份`:""}`,dragTo:statusIds,item:items.map(material=>{const project=projectById(material.project),node=materialCurrentNode(material),assetType=materialAssetTypeNames[material.assetType]||"未分类",versions=materialVersionNames(material),versionCount=materialVersionCount(material);return{id:material.id,title:`<div class="kanban-card"><div class="kanban-card-head"><span class="kanban-card-name">${escapeHtml(material.name)}${versionCount>1?`<span class="material-version-badge">${versionCount} 版</span>`:""}</span><span class="kanban-card-project" style="color:${projectColor(project.id)};background:${projectTint(project.id)}">${escapeHtml(project.name)}</span></div>${versions.length?`<div class="kanban-card-meta">版本：${escapeHtml(versions.join("、"))}</div>`:""}<div class="kanban-card-meta">${escapeHtml(assetType)} · 当前：${escapeHtml(node.label)}${node.task?` · ${escapeHtml(node.task.name)}`:""}</div><div class="kanban-card-meta">负责人：${escapeHtml(material.owner||project.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk&&!isNoRisk(material.risk)?`<div class="kanban-card-meta kanban-card-risk">风险：${escapeHtml(material.risk)}</div>`:""}</div>`}})}});
       kanbanInstance=new jKanban({element:"#kanbanBoard",gutter:"14px",widthBoard:"270px",responsivePercentage:false,dragBoards:false,dragItems:canEdit(),boards,click:item=>{const material=materialById(item.dataset.eid);if(!material)return;enterProjectWorkspace(material.project);scheduleMaterialFocusId=material.id;if(canEdit())activateView("manage")},dropEl:(item,target)=>{if(!canEdit())return;const material=materialById(item.dataset.eid),status=target.closest(".kanban-board")?.dataset.id;if(!material||!Object.prototype.hasOwnProperty.call(materialStatusNames,status)||effectiveMaterialStatus(material)===status)return;material.statusOverride=status;material.status=status;material.updatedAt=new Date().toISOString();saveMaterials();updateSummary()}});
