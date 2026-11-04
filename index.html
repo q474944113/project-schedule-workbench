@@ -2098,7 +2098,10 @@
       if(focusedProjectId&&view==="overview")return exitProjectWorkspace();
       if(focusedProjectId&&view==="weekly")view="calendar";
       currentView=view;
-      if(currentView==="manage"&&window.matchMedia("(max-width: 560px)").matches){el("projectManagerDetails").open=false;el("materialManagerDetails").open=false}
+      if(currentView==="manage"){
+        if(!focusedProjectId)el("projectManagerDetails").open=true;
+        else if(window.matchMedia("(max-width: 560px)").matches){el("projectManagerDetails").open=false;el("materialManagerDetails").open=false}
+      }
       if(currentView==="weekly"){weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);renderWeeklyEditors();generateWeeklyReport()}
       if(currentView==="cloud"&&!cloudSnapshots.length&&!cloudHistoryLoading)loadCloudHistory();
       setActiveViewTab(currentView);render();
@@ -2111,7 +2114,14 @@
       const today=parse(TODAY);currentYear=today.getFullYear();currentMonth=today.getMonth();
       activateView("calendar");showDetail(today);
     }
-    function exitProjectWorkspace(){focusedProjectId="";projectFilter="all";typeFilter="all";searchFilter="";scheduleMaterialFocusId="";el("globalSearch").value="";el("typeFilter").value="all";activateView("overview")}
+    function exitProjectWorkspace(){
+      focusedProjectId="";projectFilter="all";typeFilter="all";searchFilter="";scheduleMaterialFocusId="";
+      el("globalSearch").value="";el("typeFilter").value="all";
+      el("projectManagerDetails").open=true;el("materialManagerDetails").open=true;
+      const board=el("materialNodeBoard");board.hidden=true;board.innerHTML="";
+      el("scheduleEditorList").innerHTML="";
+      activateView("overview");
+    }
     const projectName=id=>projectById(id)?.name||id||"未命名项目";
     const projectColor=id=>validProjectColor(projectById(id)?.color);
     const projectStatusNames={planning:"筹备中",active:"进行中",paused:"已暂停",completed:"已完成"};
@@ -2730,10 +2740,11 @@
     }
     function dateRange(start,end){const a=[],d=parse(start),last=parse(end);while(d<=last){a.push(new Date(d));d.setDate(d.getDate()+1)}return a}
     function renderGantt(){
-      const list=visibleTasks(),fallback=projectBounds(),bounds=list.length?{start:list.reduce((min,task)=>taskGanttStart(task)<min?taskGanttStart(task):min,taskGanttStart(list[0])),end:list.reduce((max,task)=>taskGanttEnd(task)>max?taskGanttEnd(task):max,taskGanttEnd(list[0]))}:fallback,dates=dateRange(bounds.start,bounds.end),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
+      const monthStart=iso(new Date(currentYear,currentMonth,1)),monthEnd=iso(new Date(currentYear,currentMonth+1,0));
+      const list=visibleTasks().filter(task=>taskGanttStart(task)<=monthEnd&&taskGanttEnd(task)>=monthStart),dates=dateRange(monthStart,monthEnd),columns=`250px repeat(${dates.length},minmax(32px,1fr))`;
       const head=`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label gantt-head">项目／排期事项</div>${dates.map(d=>`<div class="gantt-cell gantt-head ${isRestDay(d)?"weekend":""} ${iso(d)===TODAY?"today":""}"><span>${d.getDate()}</span><span class="gantt-month">/${d.getMonth()+1}</span></div>`).join("")}</div>`;
-      const rows=list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed",actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join("");
-      el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${formatDate(bounds.start)}—${formatDate(bounds.end)}`;
+      const rows=list.length?list.map(t=>{const active=dates.filter(d=>ganttActiveOn(t,d)).map(iso),delay=delayDays(t),completed=taskEffectiveStatus(t)==="completed",actualText=t.actualEnd?` · 实际完成 ${formatDate(t.actualEnd)}`:"";return`<div class="gantt-row" style="grid-template-columns:${columns}"><div class="gantt-cell gantt-label">${escapeHtml(framedProjectLabel(t))}${escapeHtml(t.name)}${materialTaskProgress(t).label?` · ${materialTaskProgress(t).label}`:""}${delay?` · 延期${delay}天`:""}</div>${dates.map(d=>{const key=iso(d),on=active.includes(key),i=active.indexOf(key),prev=i>0&&parse(key)-parse(active[i-1])===86400000,next=i>=0&&i<active.length-1&&parse(active[i+1])-parse(key)===86400000,edge=on?`${prev?"":"start"} ${next?"":"end"}`:"";return`<div class="gantt-cell ${isRestDay(d)?"weekend":""} ${key===TODAY?"today":""}">${on?`<div class="bar-cell ${t.submit?"milestone":t.type} ${delay?"delayed":""} ${completed?"completed":""} ${edge}" style="${!delay&&!t.submit&&t.type==="production"?`background:${projectColor(t.project)}`:""}" title="${escapeHtml(`${projectLabel(t)} · ${t.name} · 计划 ${rangeText(t)}${actualText} · ${materialTaskProgress(t).label||"无子素材"} · ${delayText(t)}`)}">${!prev?`<span class="bar-text">${delay?`延期${delay}天`:escapeHtml(t.note)}</span>`:""}</div>`:""}</div>`}).join("")}</div>`}).join(""):`<div class="schedule-empty">当前筛选下，${currentYear} 年 ${currentMonth+1} 月暂无排期节点。</div>`;
+      el("gantt").innerHTML=head+rows;el("viewTitle").textContent=`${currentYear} 年 ${currentMonth+1} 月`;
     }
     function taskDuration(task){return dateRange(taskDisplayStart(task),taskDisplayEnd(task)).filter(date=>!isRestDay(date)).length}
     function renderDuration(){
@@ -2781,6 +2792,12 @@
       let focused=projectById(focusedProjectId);
       if(focusedProjectId&&!focused){focusedProjectId="";projectFilter="all";focused=null}
       if(focused)projectFilter=focused.id;
+      else{
+        scheduleMaterialFocusId="";
+        const board=el("materialNodeBoard");board.hidden=true;board.innerHTML="";
+        el("scheduleEditorList").innerHTML="";
+        if(currentView==="manage")el("projectManagerDetails").open=true;
+      }
       const root=el("appRoot"),bar=el("projectWorkspaceBar"),manageTab=document.querySelector('[data-view="manage"]');
       root.classList.toggle("project-focus",Boolean(focused));
       bar.hidden=!focused;
@@ -2804,7 +2821,8 @@
       el("cloudHistoryPanel").hidden=currentView!=="cloud";
       el("scheduleEditorPanel").hidden=currentView!=="manage";
       el("weeklyPanel").hidden=currentView!=="weekly";
-      el("monthNav").hidden=currentView!=="calendar";
+      el("monthNav").hidden=![ "calendar","gantt" ].includes(currentView);
+      el("calendarModeToggle").hidden=currentView!=="calendar"||calendarAutoCompact();
       el("dragHelp").hidden=currentView!=="calendar";
       el("detailDrawerToggle").hidden=currentView!=="calendar";
       if(currentView!=="calendar")setDetailDrawerOpen(false);
@@ -2825,7 +2843,7 @@
       if(currentView==="overview")el("viewTitle").textContent="项目统筹总览";
       if(currentView==="kanban")el("viewTitle").textContent=focused?`${focused.name} · 素材看板`:"素材状态看板";
       if(currentView==="calendar")el("viewTitle").textContent=`${currentYear} 年 ${currentMonth+1} 月`;
-      if(currentView==="gantt"){const bounds=projectBounds();el("viewTitle").textContent=formatDate(bounds.start)+"—"+formatDate(bounds.end)}
+      if(currentView==="gantt")el("viewTitle").textContent=`${currentYear} 年 ${currentMonth+1} 月`;
       if(currentView==="duration")el("viewTitle").textContent="节点计划耗时统计";
       if(currentView==="cloud")el("viewTitle").textContent="云端版本历史";
       if(currentView==="manage"){el("viewTitle").textContent=focused?"排期节点编辑":"项目管理";if(focused)renderScheduleEditors()}
@@ -2847,9 +2865,9 @@
     el("refreshCloudHistory").addEventListener("click",loadCloudHistory);
     el("calendarModeToggle").addEventListener("click",()=>{calendarLandscapeMode=calendarLandscapeMode==="compact"?"detailed":"compact";localStorage.setItem(CALENDAR_DISPLAY_KEY,calendarLandscapeMode);applyCalendarDisplayMode()});
     window.addEventListener("resize",applyCalendarDisplayMode);
-    el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
-    el("nextMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth+1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();renderCalendar()});
-    el("goToday").addEventListener("click",()=>{const today=parse(TODAY);currentYear=today.getFullYear();currentMonth=today.getMonth();renderCalendar();showDetail(today)});
+    el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();render()});
+    el("nextMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth+1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();render()});
+    el("goToday").addEventListener("click",()=>{const today=parse(TODAY);currentYear=today.getFullYear();currentMonth=today.getMonth();render();if(currentView==="calendar")showDetail(today)});
     el("closeDetailPanel").addEventListener("click",()=>setDetailDrawerOpen(false));
     el("detailDrawerToggle").addEventListener("click",()=>setDetailDrawerOpen(!el("detailPanel").classList.contains("open")));
     document.addEventListener("keydown",event=>{if(event.key==="Escape"&&el("detailPanel").classList.contains("open"))setDetailDrawerOpen(false)});
