@@ -242,6 +242,20 @@
     .project-demand-label { color: #725d42; font-size: 12px; font-weight: 700; }
     .project-demand-field { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
     .project-demand-field input { width: 70px; min-width: 70px; padding: 6px 8px; text-align: center; }
+    .demand-pool-manager { margin-top: 10px; padding: 11px; border: 1px solid rgba(159,146,125,.42); border-radius: 12px; background: #fffdf8; }
+    .demand-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .demand-pool-head strong { color: #725d42; }
+    .demand-pool-create { display: flex; gap: 8px; min-width: min(100%, 420px); }
+    .demand-pool-create input { min-width: 0; flex: 1; }
+    .demand-pool-list { display: grid; gap: 8px; margin-top: 9px; }
+    .demand-pool-item { display: grid; grid-template-columns: minmax(130px,1fr) repeat(5,minmax(92px,auto)) auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .demand-pool-item > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .demand-pool-linked { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .project-demand-pool-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 10px; }
+    .project-demand-pool-row select { min-width: 180px; }
+    .project-demand-pool-help { color: var(--muted); font-size: 11px; }
+    .project-demand-summary.pooled { border-color: rgba(75,151,132,.42); background: #eef8f4; }
+    .project-demand-pool-badge { display: block; margin-bottom: 4px; color: #42766f; font-size: 11px; font-weight: 700; }
     .project-channel-editor { grid-column:1/-1; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:start; gap:8px 12px; padding-top:8px; border-top:1px dashed var(--line); }
     .project-channel-editor > strong { padding-top:7px; color:#725d42; font-size:12px; }
     .project-channel-body { display:grid; gap:7px; min-width:0; }
@@ -439,6 +453,10 @@
       .output-card { position: static; }
       .schedule-row-fields { grid-template-columns: 120px 140px minmax(220px, 1fr) 130px 130px 130px 110px 100px minmax(100px, .5fr) 72px 52px 52px; }
       .project-create, .project-manager-item, .material-create, .material-manager-item { grid-template-columns: 1fr; }
+      .demand-pool-head { align-items: stretch; flex-direction: column; }
+      .demand-pool-create { min-width: 0; width: 100%; }
+      .demand-pool-item { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .demand-pool-item > strong, .demand-pool-item > .demand-pool-linked { grid-column: 1 / -1; }
       .app.project-focus .material-create, .app.project-focus .material-manager-item { grid-template-columns: 1fr; }
       .material-followup-editor { grid-template-columns: 1fr 1fr; }
       .material-followup-label, .material-followup-note { grid-column: 1 / -1; }
@@ -1148,6 +1166,10 @@
 
               <button type="button" class="primary" id="addProjectDefinition">＋ 新增项目</button>
             </div>
+            <section class="demand-pool-manager" aria-label="需求池管理">
+              <div class="demand-pool-head"><div><strong>需求池管理</strong><div class="schedule-editor-help">一个需求池可关联任意数量项目，池内项目共享需求总量并合并统计子素材。</div></div><div class="demand-pool-create"><input id="newDemandPoolName" type="text" maxlength="40" placeholder="输入需求池名称"><button type="button" id="addDemandPool">＋ 新建需求池</button></div></div>
+              <div id="demandPoolList" class="demand-pool-list"></div>
+            </section>
             <div id="projectManagerList" class="project-manager-list"></div>
           </details>
           <details id="materialManagerDetails" class="material-manager" open><summary class="manager-summary">子素材管理</summary>
@@ -1659,6 +1681,7 @@
     const SCHEDULE_STORAGE_KEY="project-workbench-schedule-v3";
     const PROJECTS_STORAGE_KEY="project-workbench-projects-v1";
     const MATERIALS_STORAGE_KEY="project-workbench-materials-v1";
+    const DEMAND_POOLS_STORAGE_KEY="project-workbench-demand-pools-v1";
     const DEFAULT_PROJECTS=[
       {id:"zj",name:"杖剑传说",color:"#f58228",owner:"",contact:"",status:"active",priority:"medium",archived:false},
       {id:"s3g",name:"S3G",color:"#7a61c9",owner:"",contact:"",status:"active",priority:"medium",archived:false}
@@ -1697,7 +1720,12 @@
     const materialDemandEntries=()=>Object.entries(materialAssetTypeNames).filter(([key])=>key!=="unclassified");
     const emptyProjectDemand=()=>Object.fromEntries(materialDemandEntries().map(([key])=>[key,0]));
     function normalizeProjectDemand(value){const source=value&&typeof value==="object"?value:{},count=key=>Math.max(0,Math.min(9999,Math.round(Number(source[key])||0)));return Object.fromEntries(materialDemandEntries().map(([key])=>[key,count(key)]))}
-    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,channels:channelSelectionList(project.channels),demand:normalizeProjectDemand(project.demand)}))}
+    const normalizeDemandPoolId=value=>String(value||"").trim();
+    const normalizeDemandPoolName=value=>String(value||"").trim().slice(0,40);
+    function normalizeDemandPools(items){const seen=new Set();return(Array.isArray(items)?items:[]).map((item,index)=>{const id=normalizeDemandPoolId(item?.id)||`demand-pool-${Date.now().toString(36)}-${index}`;if(seen.has(id))return null;seen.add(id);return{id,name:normalizeDemandPoolName(item?.name)||`需求池 ${index+1}`,demand:normalizeProjectDemand(item?.demand)}}).filter(Boolean)}
+    function loadDemandPools(){try{return normalizeDemandPools(JSON.parse(localStorage.getItem(DEMAND_POOLS_STORAGE_KEY)))}catch(_){return[]}}
+    function saveDemandPools(){try{localStorage.setItem(DEMAND_POOLS_STORAGE_KEY,JSON.stringify(demandPools))}catch(_){}scheduleCloudSave()}
+    function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,channels:channelSelectionList(project.channels),demandPoolId:"",demand:normalizeProjectDemand(project.demand)}))}
     function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
     const personSelectionList=value=>[...new Set(String(value||"").split(/[、,，;；\n]+/).map(item=>item.trim()).filter(Boolean))];
     const normalizePersonSelection=value=>personSelectionList(value).join("、");
@@ -1705,8 +1733,8 @@
     const channelSelectionList=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(item=>String(item||"").trim()).filter(Boolean))];
     function normalizeProjects(items,taskList=[]){
       const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
-      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:normalizePersonSelection(project.owner),contact:normalizePersonSelection(project.contact),channels:channelSelectionList(project.channels),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived),demand:normalizeProjectDemand(project.demand)})});
-      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",contact:"",channels:[],status:"active",priority:"medium",archived:false,demand:emptyProjectDemand()})}});
+      source.forEach((project,index)=>{const id=String(project?.id||"").trim();if(!id||seen.has(id))return;seen.add(id);result.push({id,name:String(project.name||id).trim()||id,color:validProjectColor(project.color||PROJECT_COLORS[index%PROJECT_COLORS.length]),owner:normalizePersonSelection(project.owner),contact:normalizePersonSelection(project.contact),channels:channelSelectionList(project.channels),status:["planning","active","paused","completed"].includes(project.status)?project.status:"active",priority:["high","medium","low"].includes(project.priority)?project.priority:"medium",archived:Boolean(project.archived),demandPoolId:normalizeDemandPoolId(project.demandPoolId),demand:normalizeProjectDemand(project.demand)})});
+      taskList.forEach(task=>{if(task.project&&!seen.has(task.project)){seen.add(task.project);result.push({id:task.project,name:String(task.project),color:PROJECT_COLORS[result.length%PROJECT_COLORS.length],owner:"",contact:"",channels:[],status:"active",priority:"medium",archived:false,demandPoolId:"",demand:emptyProjectDemand()})}});
       return result.length?result:cloneDefaultProjects();
     }
     function loadProjects(taskList){
@@ -1714,7 +1742,9 @@
       catch(_){return normalizeProjects(null,taskList)}
     }
     let tasks=migrateLocalDirection5(loadScheduleTasks()).map(classifySpecialTask);
+    let demandPools=loadDemandPools();
     let projects=loadProjects(tasks);
+    projects.forEach(project=>{if(project.demandPoolId&&!demandPools.some(pool=>pool.id===project.demandPoolId))project.demandPoolId=""});
     const materialStatusNames={not_started:"未开始",production:"进行中",pending_feedback:"待反馈",revision:"修改中",completed:"已完成"};
     const materialFollowUpTypeNames={none:"不提醒",ad_review:"等待广告审核",asset_wait:"等待素材提供",client_feedback:"等待客户反馈",other:"其他卡点"};
     const normalizeFollowUpDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||"").trim())?String(value).trim():"";
@@ -1722,6 +1752,12 @@
     const materialVersionCount=material=>Math.max(1,normalizeMaterialVersions(material?.versions).length);
     const materialVersionNames=material=>normalizeMaterialVersions(material?.versions);
     const materialUnitCount=list=>list.reduce((sum,material)=>sum+materialVersionCount(material),0);
+    function projectDemandScope(project){
+      const pool=demandPools.find(item=>item.id===project?.demandPoolId);
+      if(!pool)return{pool:null,projects:project?[project]:[],materials:project?materialsForProject(project.id):[],demand:normalizeProjectDemand(project?.demand)};
+      const scopeProjects=projects.filter(item=>item.demandPoolId===pool.id),ids=new Set(scopeProjects.map(item=>item.id));
+      return{pool,projects:scopeProjects,materials:materials.filter(item=>ids.has(item.project)),demand:normalizeProjectDemand(pool.demand)};
+    }
     function defaultMaterials(projectList){
       const project=projectList.find(item=>/evony|enovy/i.test(`${item.id} ${item.name}`));
       if(!project)return[];
@@ -1766,7 +1802,7 @@
     }
     let materials=ensureTaskLinkedMaterials(loadMaterials(projects,tasks),projects,tasks);
     function currentPersonOptions(field){return normalizePersonList([...projects.map(item=>item[field]),...materials.map(item=>item[field])])}
-    try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials))}catch(_){}
+    try{localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials));localStorage.setItem(DEMAND_POOLS_STORAGE_KEY,JSON.stringify(demandPools))}catch(_){}
     const typeNames={milestone:"提交节点",production:"制作任务",supervision:"监修节点",acceptance:"验收节点",packaging:"打包节点",revision:"修改任务"},taskStatusNames={not_started:"未开始",in_progress:"进行中",waiting:"待确认",completed:"已完成"},weekdays=["日","一","二","三","四","五","六"];
     const WEEKLY_STORAGE_KEY="project-workbench-weekly-report-v1";
     const REPORT_HISTORY_STORAGE_KEY="project-workbench-report-history-v1";
@@ -1956,13 +1992,14 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:21,projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:22,demandPools:demandPools.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
         localStorage.setItem(SCHEDULE_STORAGE_KEY,JSON.stringify(tasks));
         localStorage.setItem(PROJECTS_STORAGE_KEY,JSON.stringify(projects));
         localStorage.setItem(MATERIALS_STORAGE_KEY,JSON.stringify(materials));
+        localStorage.setItem(DEMAND_POOLS_STORAGE_KEY,JSON.stringify(demandPools));
         localStorage.setItem(WEEKLY_STORAGE_KEY,JSON.stringify(weeklyProjects));
         localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(reportHistory));
         localStorage.setItem(REPORT_HISTORY_SEED_KEY,"1");
@@ -1972,7 +2009,9 @@
       if(!payload||!Array.isArray(payload.tasks)||!Array.isArray(payload.weeklyProjects)||!Array.isArray(payload.reportHistory))return false;
       cloudApplying=true;
       tasks=payload.tasks.map((task,index)=>classifySpecialTask(normalizeTask(task,index,"cloud")));
+      demandPools=normalizeDemandPools(payload.demandPools);
       projects=normalizeProjects(payload.projects,payload.tasks);
+      projects.forEach(project=>{if(project.demandPoolId&&!demandPools.some(pool=>pool.id===project.demandPoolId))project.demandPoolId=""});
       materials=ensureTaskLinkedMaterials(normalizeMaterials(payload.materials,projects,tasks,!Array.isArray(payload.materials)),projects,tasks);
       sanitizeMaterialProgress();
       weeklyProjects=normalizeWeeklyProjects(payload.weeklyProjects,projects);
@@ -2029,7 +2068,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.followUpType===undefined||item.followUpDate===undefined||item.followUpNote===undefined||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<21||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||!Array.isArray(data.payload.demandPools)||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||project.demandPoolId===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.followUpType===undefined||item.followUpDate===undefined||item.followUpNote===undefined||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<22||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -2064,7 +2103,8 @@
     function projectSearchMatches(project){
       if(!searchFilter)return true;
       const token=searchFilter.toLowerCase();
-      return project.name.toLowerCase().includes(token)||(project.owner||"").toLowerCase().includes(token)||(project.contact||"").toLowerCase().includes(token)||channelSelectionList(project.channels).join(" ").toLowerCase().includes(token);
+      const pool=demandPools.find(item=>item.id===project.demandPoolId);
+      return project.name.toLowerCase().includes(token)||(project.owner||"").toLowerCase().includes(token)||(project.contact||"").toLowerCase().includes(token)||channelSelectionList(project.channels).join(" ").toLowerCase().includes(token)||(pool?.name||"").toLowerCase().includes(token);
     }
     function projectContainsSearch(project){
       if(!searchFilter)return true;
@@ -2318,8 +2358,23 @@
     function taskMaterialPickerMarkup(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),summary=taskMaterialSummary(task);return`<details class="task-material-picker"><summary title="${escapeHtml(summary)}">${escapeHtml(summary)}</summary><div class="task-material-menu"><label class="task-material-option"><input type="checkbox" class="task-material-all" ${selected.size?"":"checked"}>全部子素材</label>${list.map(material=>`<label class="task-material-option"><input type="checkbox" class="task-material-check" value="${escapeHtml(material.id)}" ${selected.has(material.id)?"checked":""}>${escapeHtml(material.name)}</label>`).join("")}</div></details>`}
     const projectChannelChipsMarkup=(project,editable=false)=>channelSelectionList(project.channels).map(channel=>`<span class="project-channel-chip">${escapeHtml(channel)}${editable?`<button type="button" class="remove-project-channel" data-channel="${escapeHtml(channel)}" aria-label="移除${escapeHtml(channel)}">×</button>`:""}</span>`).join("");
     function projectChannelEditorMarkup(project){return`<div class="project-channel-editor"><strong>投放渠道</strong><div class="project-channel-body"><div class="project-channel-tags">${projectChannelChipsMarkup(project,true)||'<span class="project-manager-count">暂未填写</span>'}</div><div class="project-channel-entry"><input type="text" maxlength="60" placeholder="输入渠道，如 Moloco、Meta、Google"><button type="button" class="add-project-channel">＋ 添加渠道</button></div></div></div>`}
+    function renderDemandPoolManager(){
+      const list=el("demandPoolList");
+      if(!list)return;
+      list.innerHTML=demandPools.length?demandPools.map(pool=>{const linked=projects.filter(project=>project.demandPoolId===pool.id),demand=normalizeProjectDemand(pool.demand);return`<div class="demand-pool-item" data-demand-pool-id="${escapeHtml(pool.id)}"><strong title="${escapeHtml(pool.name)}">${escapeHtml(pool.name)}</strong>${materialDemandEntries().map(([key,label])=>`<label class="project-demand-field">${escapeHtml(label)} <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-pool-demand-field="${escapeHtml(key)}" value="${demand[key]}" aria-label="${escapeHtml(pool.name)}${escapeHtml(label)}需求量"></label>`).join("")}<span class="demand-pool-linked">${linked.length} 个项目${linked.length?`：${escapeHtml(linked.map(project=>project.name).join("、"))}`:""}</span><button type="button" class="delete-demand-pool ghost-danger">删除</button></div>`}).join(""):'<div class="empty-state">暂未创建需求池。未关联项目仍按各自需求独立统计。</div>';
+      list.querySelectorAll("[data-pool-demand-field]").forEach(input=>input.addEventListener("change",()=>{const pool=demandPools.find(item=>item.id===input.closest(".demand-pool-item").dataset.demandPoolId);if(!pool)return;pool.demand=normalizeProjectDemand({...pool.demand,[input.dataset.poolDemandField]:input.value});saveDemandPools();render()}));
+      list.querySelectorAll(".delete-demand-pool").forEach(button=>button.addEventListener("click",()=>{const id=button.closest(".demand-pool-item").dataset.demandPoolId,pool=demandPools.find(item=>item.id===id),linked=projects.filter(project=>project.demandPoolId===id);if(!pool)return;if(linked.length)return alert(`需求池“${pool.name}”仍关联 ${linked.length} 个项目，请先解除关联。`);if(!confirm(`确认删除空需求池“${pool.name}”吗？`))return;demandPools=demandPools.filter(item=>item.id!==id);saveDemandPools();render()}));
+    }
+    function addDemandPool(){
+      const input=el("newDemandPoolName"),name=normalizeDemandPoolName(input.value);
+      if(!name){input.focus();return}
+      if(demandPools.some(pool=>pool.name.toLowerCase()===name.toLowerCase())){alert("需求池名称已存在。");input.select();return}
+      demandPools.push({id:`demand-pool-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,demand:emptyProjectDemand()});
+      input.value="";saveDemandPools();render();
+    }
     function renderProjectControls(){
       const focused=projectById(focusedProjectId),managerProjects=focused?[focused]:projects;
+      renderDemandPoolManager();
       const filter=el("projectFilter");
       if(!projects.some(project=>project.id===projectFilter))projectFilter="all";
       const filterProjects=projects.filter(project=>showArchived||!project.archived||project.id===projectFilter);filter.innerHTML=`<option value="all">全部项目</option>${filterProjects.map(project=>`<option value="${escapeHtml(project.id)}">${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}`;
@@ -2328,13 +2383,14 @@
       el("projectPriorityFilter").value=projectPriorityFilter;
       el("projectLegend").innerHTML=managerProjects.filter(project=>showArchived||!project.archived||project.id===focusedProjectId).map(project=>`<span><i class="swatch" style="background:${projectColor(project.id)}"></i>${escapeHtml(project.name)}${project.archived?"（归档）":""}</span>`).join("");
       el("projectManagerList").innerHTML=managerProjects.map(project=>{const count=tasks.filter(task=>task.project===project.id).length,projectMaterials=materialsForProject(project.id),materialCount=projectMaterials.length,materialUnits=materialUnitCount(projectMaterials),automaticStatus=scheduledProjectStatus(project),demand=normalizeProjectDemand(project.demand);return`<div class="project-manager-item ${project.archived?"archived":""}" data-project-id="${escapeHtml(project.id)}"><input type="color" class="project-color-picker" value="${projectColor(project.id)}" aria-label="${escapeHtml(project.name)}颜色"><strong>${escapeHtml(project.name)}</strong><input type="text" class="project-owner-input" data-person-combobox="owner" maxlength="120" value="${escapeHtml(project.owner)}" placeholder="负责人（可多选）"><input type="text" class="project-contact-input" data-person-combobox="contact" maxlength="120" value="${escapeHtml(project.contact)}" placeholder="客户对接人（可多选）"><select class="project-status-select" aria-label="项目状态"><option value="auto" ${project.status!=="paused"?"selected":""}>自动判断（${projectStatusNames[automaticStatus]}）</option><option value="paused" ${project.status==="paused"?"selected":""}>已暂停</option></select><select class="project-priority-select" aria-label="项目优先级">${Object.entries(projectPriorityNames).map(([value,label])=>`<option value="${value}" ${project.priority===value?"selected":""}>${label}优先级</option>`).join("")}</select><span class="project-manager-count">${count} 节点 · ${materialUnits} 份素材${materialUnits!==materialCount?`（${materialCount} 条子素材）`:""}</span><span><button type="button" class="archive-project">${project.archived?"取消归档":"归档"}</button> <button type="button" class="rename-project">重命名</button> <button type="button" class="delete-project ghost-danger">删除</button></span><div class="project-demand-editor"><span class="project-demand-label">素材需求量</span><label class="project-demand-field">2D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoD" value="${demand.twoD}" aria-label="2D需求量"></label><label class="project-demand-field">3D <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeD" value="${demand.threeD}" aria-label="3D需求量"></label><label class="project-demand-field">2D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="twoDIteration" value="${demand.twoDIteration}" aria-label="2D迭代需求量"></label><label class="project-demand-field">3D迭代 <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="threeDIteration" value="${demand.threeDIteration}" aria-label="3D迭代需求量"></label></div></div>`}).join("");
-      document.querySelectorAll(".project-manager-item").forEach(card=>{const project=projectById(card.dataset.projectId);if(!project)return;const demand=normalizeProjectDemand(project.demand),editor=card.querySelector(".project-demand-editor");editor.innerHTML=`<span class="project-demand-label">素材需求量</span>${materialDemandEntries().map(([key,label])=>`<label class="project-demand-field">${escapeHtml(label)} <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="${escapeHtml(key)}" value="${demand[key]}" aria-label="${escapeHtml(label)}需求量"></label>`).join("")}`;card.insertAdjacentHTML("beforeend",projectChannelEditorMarkup(project))});
+      document.querySelectorAll(".project-manager-item").forEach(card=>{const project=projectById(card.dataset.projectId);if(!project)return;const demand=normalizeProjectDemand(project.demand),pool=demandPools.find(item=>item.id===project.demandPoolId),editor=card.querySelector(".project-demand-editor");editor.innerHTML=`<div class="project-demand-pool-row"><span class="project-demand-label">需求池关联</span><select class="project-demand-pool-select" aria-label="${escapeHtml(project.name)}需求池"><option value="">独立需求</option>${demandPools.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===project.demandPoolId?"selected":""}>${escapeHtml(item.name)}</option>`).join("")}</select><span class="project-demand-pool-help">${pool?`与 ${projects.filter(item=>item.demandPoolId===pool.id).length} 个项目共享总量，统一在上方需求池中设置。`:"当前项目单独计数。"}</span></div>${pool?"":`<span class="project-demand-label">素材需求量</span>${materialDemandEntries().map(([key,label])=>`<label class="project-demand-field">${escapeHtml(label)} <input type="number" min="0" max="9999" step="1" inputmode="numeric" data-demand-field="${escapeHtml(key)}" value="${demand[key]}" aria-label="${escapeHtml(label)}需求量"></label>`).join("")}`}`;card.insertAdjacentHTML("beforeend",projectChannelEditorMarkup(project))});
       document.querySelectorAll(".project-color-picker").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.color=validProjectColor(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-owner-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.owner=normalizePersonSelection(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-contact-input").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.contact=normalizePersonSelection(input.value);saveProjects();render()}));
       document.querySelectorAll(".project-status-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.status=input.value==="paused"?"paused":scheduledProjectStatus(project);saveProjects();render()}));
       document.querySelectorAll(".project-priority-select").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.priority=input.value;saveProjects();render()}));
       document.querySelectorAll("[data-demand-field]").forEach(input=>input.addEventListener("change",()=>{const project=projectById(input.closest(".project-manager-item").dataset.projectId);if(!project)return;project.demand=normalizeProjectDemand({...project.demand,[input.dataset.demandField]:input.value});saveProjects();render()}));
+      document.querySelectorAll(".project-demand-pool-select").forEach(select=>select.addEventListener("change",()=>{const project=projectById(select.closest(".project-manager-item").dataset.projectId);if(!project)return;const previousPool=demandPools.find(item=>item.id===project.demandPoolId),targetPool=demandPools.find(item=>item.id===select.value);if(!previousPool&&targetPool){const independent=normalizeProjectDemand(project.demand);targetPool.demand=normalizeProjectDemand(Object.fromEntries(materialDemandEntries().map(([key])=>[key,targetPool.demand[key]+independent[key]])));project.demand=emptyProjectDemand()}project.demandPoolId=targetPool?.id||"";saveDemandPools();saveProjects();render()}));
       const addProjectChannel=editor=>{const project=projectById(editor.closest(".project-manager-item").dataset.projectId),input=editor.querySelector("input"),values=channelSelectionList(input.value);if(!project||!values.length){input.focus();return}project.channels=[...new Set([...channelSelectionList(project.channels),...values])];saveProjects();render()};
       document.querySelectorAll(".add-project-channel").forEach(button=>button.addEventListener("click",()=>addProjectChannel(button.closest(".project-channel-entry"))));
       document.querySelectorAll(".project-channel-entry input").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addProjectChannel(input.closest(".project-channel-entry"))}}));
@@ -2348,7 +2404,7 @@
       const input=el("newProjectName"),name=input.value.trim();
       if(!name){input.focus();return}
       if(projects.some(project=>project.name.toLowerCase()===name.toLowerCase())){alert("项目名称已存在。");input.select();return}
-      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:normalizePersonSelection(el("newProjectOwner").value),contact:normalizePersonSelection(el("newProjectContact").value),channels:channelSelectionList(el("newProjectChannels").value),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false,demand:emptyProjectDemand()};
+      const project={id:`project-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,name,color:PROJECT_COLORS[Math.max(0,projects.length-2)%PROJECT_COLORS.length],owner:normalizePersonSelection(el("newProjectOwner").value),contact:normalizePersonSelection(el("newProjectContact").value),channels:channelSelectionList(el("newProjectChannels").value),status:el("newProjectStatus").value==="paused"?"paused":"planning",priority:el("newProjectPriority").value,archived:false,demandPoolId:"",demand:emptyProjectDemand()};
       projects.push(project);
       weeklyProjects=normalizeWeeklyProjects(weeklyProjects,projects);saveWeeklyProjects();renderWeeklyEditors()
       input.value="";el("newProjectOwner").value="";el("newProjectContact").value="";el("newProjectChannels").value="";window.syncPersonChoices?.(el("newProjectOwner"));window.syncPersonChoices?.(el("newProjectContact"));el("newProjectStatus").value="auto";el("newProjectPriority").value="medium";saveProjects();enterProjectWorkspace(project.id);
@@ -2666,8 +2722,9 @@
         const done=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.done,0):projectTasks.filter(taskCompletedByDate).length;
         const completed=projectMaterials.length?materialStats.reduce((sum,item)=>sum+item.completed,0):projectTasks.filter(task=>taskCompletedByDate(task)&&!delayDays(task)).length;
         const progress=total?Math.round(done/total*100):0,normalRate=done?Math.round(completed/done*100):0;
-        const materialUnits=materialUnitCount(projectMaterials),next=[...projectTasks].filter(task=>!task.actualEnd&&task.end>=TODAY).sort(compareTasks)[0],demand=normalizeProjectDemand(project.demand),assetTypeCounts=projectMaterials.reduce((counts,material)=>{if(Object.prototype.hasOwnProperty.call(counts,material.assetType))counts[material.assetType]+=materialVersionCount(material);return counts},emptyProjectDemand()),unclassifiedCount=projectMaterials.filter(material=>material.assetType==="unclassified").reduce((sum,material)=>sum+materialVersionCount(material),0),demandItems=materialDemandEntries().map(([key,label])=>({label,key,required:demand[key],current:assetTypeCounts[key],gap:Math.max(0,demand[key]-assetTypeCounts[key])})).filter(item=>item.required>0),demandTotal=demandItems.reduce((sum,item)=>sum+item.required,0),matchedTotal=demandItems.reduce((sum,item)=>sum+Math.min(item.current,item.required),0),demandGap=demandItems.reduce((sum,item)=>sum+item.gap,0);
-        const demandCard=demandTotal?`<div class="project-demand-summary"><div class="project-demand-head"><span>素材需求 ${demandTotal} · 已匹配 ${matchedTotal}${unclassifiedCount?` · 未分类 ${unclassifiedCount}`:""}</span><span class="project-demand-gap ${demandGap?"":"complete"}">${demandGap?`缺口 ${demandGap}`:"需求已覆盖"}</span></div><div class="project-demand-chips">${demandItems.map(item=>`<span class="project-demand-chip">${item.label} ${item.current}/${item.required}${item.gap?` · 缺 ${item.gap}`:" · 已覆盖"}</span>`).join("")}</div></div>`:"";
+        const demandScope=projectDemandScope(project),demand=demandScope.demand,demandMaterials=demandScope.materials;
+        const materialUnits=materialUnitCount(projectMaterials),next=[...projectTasks].filter(task=>!task.actualEnd&&task.end>=TODAY).sort(compareTasks)[0],assetTypeCounts=demandMaterials.reduce((counts,material)=>{if(Object.prototype.hasOwnProperty.call(counts,material.assetType))counts[material.assetType]+=materialVersionCount(material);return counts},emptyProjectDemand()),unclassifiedCount=demandMaterials.filter(material=>material.assetType==="unclassified").reduce((sum,material)=>sum+materialVersionCount(material),0),demandItems=materialDemandEntries().map(([key,label])=>({label,key,required:demand[key],current:assetTypeCounts[key],gap:Math.max(0,demand[key]-assetTypeCounts[key])})).filter(item=>item.required>0),demandTotal=demandItems.reduce((sum,item)=>sum+item.required,0),matchedTotal=demandItems.reduce((sum,item)=>sum+Math.min(item.current,item.required),0),demandGap=demandItems.reduce((sum,item)=>sum+item.gap,0);
+        const demandCard=demandTotal?`<div class="project-demand-summary ${demandScope.pool?"pooled":""}">${demandScope.pool?`<span class="project-demand-pool-badge">需求池「${escapeHtml(demandScope.pool.name)}」 · ${demandScope.projects.length} 个项目共同计数</span>`:""}<div class="project-demand-head"><span>素材需求 ${demandTotal} · 已匹配 ${matchedTotal}${unclassifiedCount?` · 未分类 ${unclassifiedCount}`:""}</span><span class="project-demand-gap ${demandGap?"":"complete"}">${demandGap?`缺口 ${demandGap}`:"需求已覆盖"}</span></div><div class="project-demand-chips">${demandItems.map(item=>`<span class="project-demand-chip">${item.label} ${item.current}/${item.required}${item.gap?` · 缺 ${item.gap}`:" · 已覆盖"}</span>`).join("")}</div></div>`:"";
         const materialCards=projectMaterials.length?`<div class="material-mini-grid">${projectMaterials.slice(0,4).map(material=>{const node=materialCurrentNode(material),task=node.task,versions=materialVersionNames(material),versionCount=materialVersionCount(material);return`<button type="button" class="material-mini-card open-material-node ${node.state}" data-project-id="${escapeHtml(project.id)}" data-material-id="${escapeHtml(material.id)}"><div class="material-mini-head"><span class="material-mini-name">${escapeHtml(material.name)}${versionCount>1?`<span class="material-version-badge">${versionCount} 版</span>`:""}</span><span class="material-node-state">${node.label}</span></div>${versions.length?`<div class="material-mini-meta">版本：${escapeHtml(versions.join("、"))}</div>`:""}<div class="material-mini-node"><span class="material-stage-label"><span class="material-stage-label-text">${task?escapeHtml(task.name):"暂无排期"}</span></span></div><div class="material-mini-meta">${escapeHtml(node.detail)}${node.extra?` · 另有 ${node.extra} 个并行节点`:""} · 负责人：${escapeHtml(material.owner||"未填写")}${material.contact?` · 对接人：${escapeHtml(material.contact)}`:""}</div>${material.risk?`<div class="material-mini-meta">风险：${escapeHtml(material.risk)}</div>`:""}</button>`}).join("")}</div>${projectMaterials.length>4?`<div class="material-mini-more">另有 ${projectMaterials.length-4} 条子素材，进入项目查看</div>`:""}`:"";
         return`<article class="project-overview-card ${project.archived?"archived":""}" style="border-top-color:${projectColor(project.id)}"><div class="project-card-head"><div><div class="project-card-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</div><div class="project-card-meta">负责人：${escapeHtml(project.owner||"未填写")}${project.contact?` · 对接人：${escapeHtml(project.contact)}`:""} · ${projectTasks.length} 个节点${projectMaterials.length?` · ${materialUnits} 份素材${materialUnits!==projectMaterials.length?`（${projectMaterials.length} 条子素材）`:""}`:""}</div></div><div class="project-card-badges"><span class="status-badge">${projectStatusNames[effectiveProjectStatus(project)]}</span><span class="priority-badge ${project.priority}">${projectPriorityNames[project.priority]}优先级</span></div></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(project.name)}节点完成进度" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${progress}%"></div></div><div class="project-card-meta project-progress-meta">${completed}/${total} 节点正常 · ${normalRate}%${delayed?` · 延期 ${delayed} 个`:""}</div><div class="project-card-meta project-next-meta">下一节点：${next?`${escapeHtml(next.name)}（${formatDate(next.end)}）`:"暂无未完成节点"}</div>${demandCard}${materialCards}<div class="project-card-footer"><span class="project-card-meta">${project.archived?"已归档":"当前项目"}</span><button type="button" class="open-project" data-project-id="${escapeHtml(project.id)}">进入项目</button></div></article>`;
       }).join(""):'<div class="empty-state">当前筛选下没有项目。</div>';
@@ -2900,10 +2957,12 @@
     el("detailDrawerToggle").addEventListener("click",()=>setDetailDrawerOpen(!el("detailPanel").classList.contains("open")));
     document.addEventListener("keydown",event=>{if(event.key==="Escape"&&el("detailPanel").classList.contains("open"))setDetailDrawerOpen(false)});
     el("addProjectDefinition").addEventListener("click",addProjectDefinition);
+    el("addDemandPool").addEventListener("click",addDemandPool);
     el("addMaterial").addEventListener("click",addMaterial);
     el("newMaterialProject").addEventListener("change",()=>applyNewMaterialDefaults(true));
     el("newMaterialName").addEventListener("keydown",event=>{if(event.key==="Enter")addMaterial()});
     el("newProjectName").addEventListener("keydown",event=>{if(event.key==="Enter")addProjectDefinition()});
+    el("newDemandPoolName").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addDemandPool()}});
     el("addScheduleTask").addEventListener("click",()=>{
       const bounds=projectBounds(),id=`schedule-${Date.now()}`,project=projectFilter!=="all"&&projectById(projectFilter)?projectFilter:projects[0]?.id||"zj";
       tasks.push({id,project,materialIds:[],materialId:"",name:"新排期节点",start:bounds.end,end:bounds.end,type:"production",note:"制作",submit:false,status:"not_started",statusOverride:"",updatedAt:new Date().toISOString()});
