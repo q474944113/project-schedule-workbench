@@ -233,11 +233,12 @@
     .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
     .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(125px, .7fr)) 120px 100px auto; gap: 8px; align-items: center; }
     .project-manager-list { display: grid; gap: 8px; margin-top: 10px; }
-    .project-manager-item { display: grid; grid-template-columns: 28px minmax(120px, 1fr) minmax(120px, .7fr) minmax(120px, .7fr) 110px 90px auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .project-manager-item { position:relative; display: grid; grid-template-columns: 28px minmax(120px, 1fr) minmax(120px, .7fr) minmax(120px, .7fr) 110px 90px auto auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
     .project-manager-item input[type="color"] { width: 25px; height: 25px; padding: 1px; border-radius: 50%; cursor: pointer; }
     .project-manager-count { color: var(--muted); font-size: 11px; }
     .project-manager-item button { padding: 4px 7px; font-size: 11px; }
     .project-manager-item.archived { opacity: .65; }
+    .project-manager-item:has(.project-language-picker[open]) { z-index:400; opacity:1; }
     .project-demand-editor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 7px 12px; padding-top: 8px; border-top: 1px dashed var(--line); }
     .project-demand-label { color: #725d42; font-size: 12px; font-weight: 700; }
     .project-demand-field { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
