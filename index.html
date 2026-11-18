@@ -1750,13 +1750,13 @@
     const channelSelectionList=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(item=>String(item||"").trim()).filter(Boolean))];
     const PROJECT_LANGUAGE_OPTIONS=[
       {code:"ZH-CN",label:"简体中文"},{code:"ZH-TW",label:"台湾繁体"},{code:"ZH-HK",label:"香港繁体"},{code:"YUE",label:"粤语"},
-      {code:"EN",label:"英语"},{code:"JA",label:"日语"},{code:"KO",label:"韩语"},{code:"TH",label:"泰语"},
+      {code:"EN",label:"英语"},{code:"JP",label:"日语"},{code:"KR",label:"韩语"},{code:"TH",label:"泰语"},
       {code:"ID",label:"印尼语"},{code:"VI",label:"越南语"},{code:"MS",label:"马来语"},{code:"DE",label:"德语"},
       {code:"FR",label:"法语"},{code:"ES",label:"西班牙语"},{code:"PT",label:"葡萄牙语"},{code:"IT",label:"意大利语"},
       {code:"RU",label:"俄语"},{code:"AR",label:"阿拉伯语"},{code:"TR",label:"土耳其语"}
     ];
-    const LANGUAGE_ALIASES={"中文":"ZH-CN","简中":"ZH-CN","简体":"ZH-CN","简体中文":"ZH-CN","繁中":"ZH-TW","繁体":"ZH-TW","台湾繁体":"ZH-TW","香港繁体":"ZH-HK","粤语":"YUE","广东话":"YUE","英语":"EN","英文":"EN","日语":"JA","韩语":"KO","泰语":"TH","印尼语":"ID","越南语":"VI","马来语":"MS","德语":"DE","法语":"FR","西班牙语":"ES","葡萄牙语":"PT","意大利语":"IT","俄语":"RU","阿拉伯语":"AR","土耳其语":"TR"};
-    function normalizeLanguageValue(value){const raw=String(value||"").trim().slice(0,30);if(!raw)return"";const option=PROJECT_LANGUAGE_OPTIONS.find(item=>item.code.toLowerCase()===raw.toLowerCase()||item.label===raw);if(option)return option.code;return LANGUAGE_ALIASES[raw]||(/^[a-z][a-z0-9-]*$/i.test(raw)?raw.toUpperCase():raw)}
+    const LANGUAGE_ALIASES={"中文":"ZH-CN","简中":"ZH-CN","简体":"ZH-CN","简体中文":"ZH-CN","繁中":"ZH-TW","繁体":"ZH-TW","台湾繁体":"ZH-TW","香港繁体":"ZH-HK","粤语":"YUE","广东话":"YUE","英语":"EN","英文":"EN","日语":"JP","JA":"JP","韩语":"KR","KO":"KR","泰语":"TH","印尼语":"ID","越南语":"VI","马来语":"MS","德语":"DE","法语":"FR","西班牙语":"ES","葡萄牙语":"PT","意大利语":"IT","俄语":"RU","阿拉伯语":"AR","土耳其语":"TR"};
+    function normalizeLanguageValue(value){const raw=String(value||"").trim().slice(0,30);if(!raw)return"";const option=PROJECT_LANGUAGE_OPTIONS.find(item=>item.code.toLowerCase()===raw.toLowerCase()||item.label===raw);if(option)return option.code;return LANGUAGE_ALIASES[raw]||LANGUAGE_ALIASES[raw.toUpperCase()]||(/^[a-z][a-z0-9-]*$/i.test(raw)?raw.toUpperCase():raw)}
     const languageSelectionList=value=>[...new Set((Array.isArray(value)?value:String(value||"").split(/[、,，;；\n]+/)).map(normalizeLanguageValue).filter(Boolean))];
     function normalizeProjects(items,taskList=[]){
       const source=Array.isArray(items)&&items.length?items:cloneDefaultProjects(),seen=new Set(),result=[];
