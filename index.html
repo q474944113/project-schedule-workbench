@@ -426,6 +426,8 @@
     .memo-meta.overdue { color:#b55252; font-weight:800; }
     .memo-actions { display:flex; gap:4px; }
     .memo-actions button { padding:4px 6px; font-size:10px; }
+    .memo-edit-form { grid-column:1/-1; display:grid; grid-template-columns:105px minmax(150px,1fr) 145px auto auto; gap:7px; align-items:center; width:100%; }
+    .memo-edit-form input, .memo-edit-form select { min-width:0; }
     .memo-empty { grid-column:1/-1; }
     .alert-list, .workload-list, .cloud-history-list { display: grid; gap: 7px; }
     .alert-item, .workload-item, .cloud-history-item { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -500,6 +502,8 @@
       .memo-create { grid-template-columns:1fr 1fr; }
       .memo-create input[type="text"] { grid-column:1/-1; }
       .memo-list { grid-template-columns:1fr; }
+      .memo-edit-form { grid-template-columns:1fr 1fr; }
+      .memo-edit-form .memo-edit-text { grid-column:1/-1; }
     }
     @media (max-width: 560px) {
       .app { padding: 12px; }
@@ -2038,7 +2042,7 @@
     let memos=loadMemos();
     const CALENDAR_DISPLAY_KEY="project-workbench-calendar-display-v1";
     let calendarLandscapeMode=localStorage.getItem(CALENDAR_DISPLAY_KEY)==="compact"?"compact":"detailed";
-    let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
+    let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",memoEditingId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
     const canEdit=()=>window.WORKBENCH_ACCESS_ROLE==="admin";
     const calendarAutoCompact=()=>window.innerWidth/window.innerHeight<=1.5;
@@ -2797,9 +2801,12 @@
       const pending=memos.filter(item=>item.type==="todo"&&!item.completed).length,notes=memos.filter(item=>item.type==="note").length;
       count.textContent=`${pending} 项待办 · ${notes} 条便签`;
       create.hidden=!editable;
-      list.innerHTML=sorted.length?sorted.map(item=>{const overdue=item.type==="todo"&&!item.completed&&item.dueDate&&item.dueDate<today,dueSoon=item.type==="todo"&&!item.completed&&item.dueDate===today,meta=item.dueDate?`${item.type==="todo"?"截止":"日期"}：${formatDate(item.dueDate)}`:`${item.type==="todo"?"待办事项":"便签备忘"}`;return`<article class="memo-item ${item.type} ${item.completed?"completed":""}" data-memo-id="${escapeHtml(item.id)}">${item.type==="todo"?`<input class="memo-check memo-toggle" type="checkbox" ${item.completed?"checked":""} ${editable?"":"disabled"} aria-label="${item.completed?"恢复待办":"完成待办"}">`:'<span class="memo-note-icon" aria-hidden="true">记</span>'}<div class="memo-content"><div class="memo-text">${escapeHtml(item.text)}</div><div class="memo-meta ${overdue?"overdue":dueSoon?"due-soon":""}">${overdue?"已逾期 · ":dueSoon?"今日截止 · ":""}${escapeHtml(meta)}</div></div>${editable?'<div class="memo-actions"><button type="button" class="edit-memo">编辑</button><button type="button" class="delete-memo ghost-danger">删除</button></div>':""}</article>`}).join(""):'<div class="empty-state memo-empty">暂无备忘或待办，可在上方快速添加。</div>';
+      list.innerHTML=sorted.length?sorted.map(item=>{const editing=memoEditingId===item.id&&editable,overdue=item.type==="todo"&&!item.completed&&item.dueDate&&item.dueDate<today,dueSoon=item.type==="todo"&&!item.completed&&item.dueDate===today,meta=item.dueDate?`${item.type==="todo"?"截止":"日期"}：${formatDate(item.dueDate)}`:`${item.type==="todo"?"待办事项":"便签备忘"}`;if(editing)return`<article class="memo-item ${item.type}" data-memo-id="${escapeHtml(item.id)}"><div class="memo-edit-form"><select class="memo-edit-type" aria-label="备忘类型"><option value="todo" ${item.type==="todo"?"selected":""}>待办事项</option><option value="note" ${item.type==="note"?"selected":""}>便签备忘</option></select><input class="memo-edit-text" type="text" maxlength="300" value="${escapeHtml(item.text)}" aria-label="备忘内容"><input class="memo-edit-date" type="date" value="${escapeHtml(item.dueDate)}" aria-label="截止日期"><button type="button" class="save-memo primary">保存</button><button type="button" class="cancel-memo">取消</button></div></article>`;return`<article class="memo-item ${item.type} ${item.completed?"completed":""}" data-memo-id="${escapeHtml(item.id)}">${item.type==="todo"?`<input class="memo-check memo-toggle" type="checkbox" ${item.completed?"checked":""} ${editable?"":"disabled"} aria-label="${item.completed?"恢复待办":"完成待办"}">`:'<span class="memo-note-icon" aria-hidden="true">记</span>'}<div class="memo-content"><div class="memo-text">${escapeHtml(item.text)}</div><div class="memo-meta ${overdue?"overdue":dueSoon?"due-soon":""}">${overdue?"已逾期 · ":dueSoon?"今日截止 · ":""}${escapeHtml(meta)}</div></div>${editable?'<div class="memo-actions"><button type="button" class="edit-memo">编辑</button><button type="button" class="delete-memo ghost-danger">删除</button></div>':""}</article>`}).join(""):'<div class="empty-state memo-empty">暂无备忘或待办，可在上方快速添加。</div>';
       list.querySelectorAll(".memo-toggle").forEach(input=>input.addEventListener("change",()=>{const item=memos.find(entry=>entry.id===input.closest(".memo-item").dataset.memoId);if(!item||!canEdit())return;item.completed=input.checked;item.updatedAt=new Date().toISOString();saveMemos();renderMemos()}));
-      list.querySelectorAll(".edit-memo").forEach(button=>button.addEventListener("click",()=>{const item=memos.find(entry=>entry.id===button.closest(".memo-item").dataset.memoId);if(!item||!canEdit())return;const next=prompt("修改备忘内容",item.text)?.trim();if(!next)return;item.text=next.slice(0,300);item.updatedAt=new Date().toISOString();saveMemos();renderMemos()}));
+      list.querySelectorAll(".edit-memo").forEach(button=>button.addEventListener("click",()=>{if(!canEdit())return;memoEditingId=button.closest(".memo-item").dataset.memoId;renderMemos();el("memoList").querySelector(".memo-edit-text")?.focus()}));
+      list.querySelectorAll(".cancel-memo").forEach(button=>button.addEventListener("click",()=>{memoEditingId="";renderMemos()}));
+      list.querySelectorAll(".save-memo").forEach(button=>button.addEventListener("click",()=>{const row=button.closest(".memo-item"),item=memos.find(entry=>entry.id===row.dataset.memoId),input=row.querySelector(".memo-edit-text"),text=input.value.trim();if(!item||!canEdit())return;if(!text){input.focus();return}item.type=row.querySelector(".memo-edit-type").value==="note"?"note":"todo";item.text=text.slice(0,300);item.dueDate=normalizeMemoDate(row.querySelector(".memo-edit-date").value);if(item.type==="note")item.completed=false;item.updatedAt=new Date().toISOString();memoEditingId="";saveMemos();renderMemos()}));
+      list.querySelectorAll(".memo-edit-text").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();input.closest(".memo-item").querySelector(".save-memo").click()}else if(event.key==="Escape"){memoEditingId="";renderMemos()}}));
       list.querySelectorAll(".delete-memo").forEach(button=>button.addEventListener("click",()=>{const id=button.closest(".memo-item").dataset.memoId,item=memos.find(entry=>entry.id===id);if(!item||!canEdit()||!confirm(`确认删除“${item.text.slice(0,30)}”吗？`))return;memos=memos.filter(entry=>entry.id!==id);saveMemos();renderMemos()}));
     }
     function addMemo(){
