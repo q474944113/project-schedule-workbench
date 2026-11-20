@@ -409,6 +409,24 @@
     .project-card-footer { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: auto; padding-top: 10px; }
     .overview-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
     .overview-box { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+    .memo-section { padding:13px; border:1px solid var(--line); border-radius:16px; background:#fffdf7; box-shadow:0 3px 0 rgba(126,104,73,.06); }
+    .memo-create { display:grid; grid-template-columns:110px minmax(180px,1fr) 150px auto; gap:8px; align-items:center; }
+    .memo-create input, .memo-create select { min-width:0; }
+    .memo-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .memo-item { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:9px; min-width:0; padding:10px 11px; border:1px solid rgba(159,146,125,.45); border-radius:13px; background:#fffaf0; }
+    .memo-item.note { background:#fff7cf; border-color:#e7cf78; }
+    .memo-item.completed { opacity:.62; background:#f2eee3; }
+    .memo-item.completed .memo-text { text-decoration:line-through; }
+    .memo-check { margin-top:2px; }
+    .memo-note-icon { display:grid; place-items:center; width:22px; height:22px; border-radius:7px; background:#efc94c; color:#725d42; font-size:13px; font-weight:800; }
+    .memo-content { min-width:0; }
+    .memo-text { color:#51483b; font-size:13px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .memo-meta { margin-top:3px; color:var(--muted); font-size:10px; }
+    .memo-meta.due-soon { color:#c65c0d; font-weight:700; }
+    .memo-meta.overdue { color:#b55252; font-weight:800; }
+    .memo-actions { display:flex; gap:4px; }
+    .memo-actions button { padding:4px 6px; font-size:10px; }
+    .memo-empty { grid-column:1/-1; }
     .alert-list, .workload-list, .cloud-history-list { display: grid; gap: 7px; }
     .alert-item, .workload-item, .cloud-history-item { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
     .alert-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; align-items: start; }
@@ -479,6 +497,9 @@
       .material-followup-label, .material-followup-note { grid-column: 1 / -1; }
       .duration-row { grid-template-columns: minmax(180px, 260px) minmax(120px, 1fr) 58px; }
       .overview-grid { grid-template-columns: 1fr; }
+      .memo-create { grid-template-columns:1fr 1fr; }
+      .memo-create input[type="text"] { grid-column:1/-1; }
+      .memo-list { grid-template-columns:1fr; }
     }
     @media (max-width: 560px) {
       .app { padding: 12px; }
@@ -1124,6 +1145,16 @@
         </div>
         <div id="dragHelp" class="drag-help">拖动节点到其他日期可移动；按住 Alt 拖动可复制。右侧详情也可直接复制节点。</div>
         <div id="overviewPanel" class="overview-panel">
+          <section id="memoSection" class="overview-section memo-section" aria-label="备忘与待办">
+            <div class="overview-section-head"><div><h3>备忘与待办</h3><div class="archive-help">记录后续工作、临时便签与截止日期</div></div><span id="memoCount" class="archive-help"></span></div>
+            <div id="memoCreate" class="memo-create">
+              <select id="memoType" aria-label="备忘类型"><option value="todo">待办事项</option><option value="note">便签备忘</option></select>
+              <input id="memoText" type="text" maxlength="300" placeholder="输入待办或备忘内容">
+              <input id="memoDueDate" type="date" aria-label="截止日期（可选）">
+              <button type="button" class="primary" id="addMemo">＋ 添加</button>
+            </div>
+            <div id="memoList" class="memo-list"></div>
+          </section>
           <section class="overview-section">
             <div class="overview-section-head"><h3>项目总览</h3><span id="overviewProjectCount" class="archive-help"></span></div>
             <div id="projectBoard" class="project-board"></div>
@@ -1700,6 +1731,7 @@
     const PROJECTS_STORAGE_KEY="project-workbench-projects-v1";
     const MATERIALS_STORAGE_KEY="project-workbench-materials-v1";
     const DEMAND_POOLS_STORAGE_KEY="project-workbench-demand-pools-v1";
+    const MEMOS_STORAGE_KEY="project-workbench-memos-v1";
     const DEFAULT_PROJECTS=[
       {id:"zj",name:"杖剑传说",color:"#f58228",owner:"",contact:"",status:"active",priority:"medium",archived:false},
       {id:"s3g",name:"S3G",color:"#7a61c9",owner:"",contact:"",status:"active",priority:"medium",archived:false}
@@ -1743,6 +1775,10 @@
     function normalizeDemandPools(items){const seen=new Set();return(Array.isArray(items)?items:[]).map((item,index)=>{const id=normalizeDemandPoolId(item?.id)||`demand-pool-${Date.now().toString(36)}-${index}`;if(seen.has(id))return null;seen.add(id);return{id,name:normalizeDemandPoolName(item?.name)||`需求池 ${index+1}`,demand:normalizeProjectDemand(item?.demand)}}).filter(Boolean)}
     function loadDemandPools(){try{return normalizeDemandPools(JSON.parse(localStorage.getItem(DEMAND_POOLS_STORAGE_KEY)))}catch(_){return[]}}
     function saveDemandPools(){try{localStorage.setItem(DEMAND_POOLS_STORAGE_KEY,JSON.stringify(demandPools))}catch(_){}scheduleCloudSave()}
+    const normalizeMemoDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||"").trim())?String(value).trim():"";
+    function normalizeMemos(items){const seen=new Set();return(Array.isArray(items)?items:[]).map((item,index)=>{const id=String(item?.id||`memo-${Date.now()}-${index}`).trim();if(!id||seen.has(id))return null;seen.add(id);const type=item?.type==="note"?"note":"todo",text=String(item?.text||"").trim().slice(0,300);if(!text)return null;return{id,type,text,dueDate:normalizeMemoDate(item?.dueDate),completed:type==="todo"&&Boolean(item?.completed),createdAt:item?.createdAt||new Date().toISOString(),updatedAt:item?.updatedAt||item?.createdAt||new Date().toISOString()}}).filter(Boolean)}
+    function loadMemos(){try{return normalizeMemos(JSON.parse(localStorage.getItem(MEMOS_STORAGE_KEY)))}catch(_){return[]}}
+    function saveMemos(){try{localStorage.setItem(MEMOS_STORAGE_KEY,JSON.stringify(memos))}catch(_){}scheduleCloudSave()}
     function cloneDefaultProjects(){return DEFAULT_PROJECTS.map(project=>({...project,channels:channelSelectionList(project.channels),languages:languageSelectionList(project.languages),demandPoolId:"",demand:normalizeProjectDemand(project.demand)}))}
     function validProjectColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""))?value:"#607d8b"}
     const personSelectionList=value=>[...new Set(String(value||"").split(/[、,，;；\n]+/).map(item=>item.trim()).filter(Boolean))];
@@ -1999,6 +2035,7 @@
 ];
     let weeklyProjects=normalizeWeeklyProjects(loadWeeklyProjects(),projects);
     let reportHistory=loadReportHistory();
+    let memos=loadMemos();
     const CALENDAR_DISPLAY_KEY="project-workbench-calendar-display-v1";
     let calendarLandscapeMode=localStorage.getItem(CALENDAR_DISPLAY_KEY)==="compact"?"compact":"detailed";
     let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
@@ -2020,7 +2057,7 @@
       node.title=detail;
     }
     function cloudPayload(){
-      return{schemaVersion:23,demandPools:demandPools.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],languages:[...languageSelectionList(item.languages)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
+      return{schemaVersion:24,demandPools:demandPools.map(item=>({...item,demand:{...normalizeProjectDemand(item.demand)}})),projects:projects.map(item=>({...item,channels:[...channelSelectionList(item.channels)],languages:[...languageSelectionList(item.languages)],demand:{...normalizeProjectDemand(item.demand)}})),tasks:tasks.map(item=>({...item,materialIds:[...(item.materialIds||[])]})),materials:materials.map(item=>({...item,versions:[...materialVersionNames(item)],completedTaskIds:[...item.completedTaskIds],incompleteTaskIds:[...item.incompleteTaskIds]})),weeklyProjects:weeklyProjects.map(item=>({...item})),reportHistory:reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))})),memos:memos.map(item=>({...item})),savedAt:new Date().toISOString(),clientId:CLIENT_ID};
     }
     function persistCloudPayload(){
       try {
@@ -2030,6 +2067,7 @@
         localStorage.setItem(DEMAND_POOLS_STORAGE_KEY,JSON.stringify(demandPools));
         localStorage.setItem(WEEKLY_STORAGE_KEY,JSON.stringify(weeklyProjects));
         localStorage.setItem(REPORT_HISTORY_STORAGE_KEY,JSON.stringify(reportHistory));
+        localStorage.setItem(MEMOS_STORAGE_KEY,JSON.stringify(memos));
         localStorage.setItem(REPORT_HISTORY_SEED_KEY,"1");
       } catch (_) {}
     }
@@ -2044,6 +2082,7 @@
       sanitizeMaterialProgress();
       weeklyProjects=normalizeWeeklyProjects(payload.weeklyProjects,projects);
       reportHistory=payload.reportHistory.map(item=>({...item,projects:(item.projects||[]).map(project=>({...project}))}));
+      memos=normalizeMemos(payload.memos);
       lastCloudVersion=Math.max(lastCloudVersion,Number(version)||0);
       persistCloudPayload();
       renderWeeklyEditors();renderReportHistory();setEvaluationDefaults();render();showDetail(parse(TODAY));
@@ -2096,7 +2135,7 @@
       if(data?.payload){
         const needsDirection5Migration=Number(data.payload.schemaVersion||0)<9||!Array.isArray(data.payload.tasks)||!data.payload.tasks.some(task=>task.id===DIRECTION5_TASKS[0].id);
         if(needsDirection5Migration)data.payload={...data.payload,tasks:mergeDirection5Tasks(data.payload.tasks)};
-        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||!Array.isArray(data.payload.demandPools)||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.languages===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||project.demandPoolId===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.followUpType===undefined||item.followUpDate===undefined||item.followUpNote===undefined||item.status==="pending_submit"||item.statusOverride==="pending_submit")||Number(data.payload.schemaVersion||0)<23||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
+        const needsProjectMigration=!Array.isArray(data.payload.projects)||!data.payload.projects.length||!Array.isArray(data.payload.demandPools)||data.payload.projects.some(project=>project.owner===undefined||project.contact===undefined||project.channels===undefined||project.languages===undefined||project.status===undefined||project.priority===undefined||project.archived===undefined||project.demandPoolId===undefined||materialDemandEntries().some(([key])=>project.demand?.[key]===undefined))||data.payload.tasks.some(task=>task.status===undefined||task.statusOverride===undefined||task.updatedAt===undefined||!Array.isArray(task.materialIds))||!Array.isArray(data.payload.materials)||data.payload.materials.some(item=>item.contact===undefined||!Array.isArray(item.incompleteTaskIds)||!Array.isArray(item.versions)||item.followUpType===undefined||item.followUpDate===undefined||item.followUpNote===undefined||item.status==="pending_submit"||item.statusOverride==="pending_submit")||!Array.isArray(data.payload.memos)||Number(data.payload.schemaVersion||0)<24||data.payload.projects.some(project=>project.usesDirection!==undefined)||data.payload.tasks.some(task=>task.materialId===undefined)||!Array.isArray(data.payload.weeklyProjects)||data.payload.weeklyProjects.some(item=>item.projectId===undefined)||needsDirection5Migration;
         if(!applyCloudPayload(data.payload,data.version))throw new Error("Invalid cloud payload");
         if(needsProjectMigration)await saveCloudState();
       } else await saveCloudState();
@@ -2752,7 +2791,22 @@
       });
       return alerts;
     }
+    function renderMemos(){
+      const list=el("memoList"),create=el("memoCreate"),count=el("memoCount");if(!list||!create||!count)return;
+      const editable=canEdit(),today=iso(new Date()),sorted=[...memos].sort((a,b)=>Number(a.completed)-Number(b.completed)||(a.type==="todo"?0:1)-(b.type==="todo"?0:1)||(a.dueDate||"9999-12-31").localeCompare(b.dueDate||"9999-12-31")||(b.updatedAt||"").localeCompare(a.updatedAt||""));
+      const pending=memos.filter(item=>item.type==="todo"&&!item.completed).length,notes=memos.filter(item=>item.type==="note").length;
+      count.textContent=`${pending} 项待办 · ${notes} 条便签`;
+      create.hidden=!editable;
+      list.innerHTML=sorted.length?sorted.map(item=>{const overdue=item.type==="todo"&&!item.completed&&item.dueDate&&item.dueDate<today,dueSoon=item.type==="todo"&&!item.completed&&item.dueDate===today,meta=item.dueDate?`${item.type==="todo"?"截止":"日期"}：${formatDate(item.dueDate)}`:`${item.type==="todo"?"待办事项":"便签备忘"}`;return`<article class="memo-item ${item.type} ${item.completed?"completed":""}" data-memo-id="${escapeHtml(item.id)}">${item.type==="todo"?`<input class="memo-check memo-toggle" type="checkbox" ${item.completed?"checked":""} ${editable?"":"disabled"} aria-label="${item.completed?"恢复待办":"完成待办"}">`:'<span class="memo-note-icon" aria-hidden="true">记</span>'}<div class="memo-content"><div class="memo-text">${escapeHtml(item.text)}</div><div class="memo-meta ${overdue?"overdue":dueSoon?"due-soon":""}">${overdue?"已逾期 · ":dueSoon?"今日截止 · ":""}${escapeHtml(meta)}</div></div>${editable?'<div class="memo-actions"><button type="button" class="edit-memo">编辑</button><button type="button" class="delete-memo ghost-danger">删除</button></div>':""}</article>`}).join(""):'<div class="empty-state memo-empty">暂无备忘或待办，可在上方快速添加。</div>';
+      list.querySelectorAll(".memo-toggle").forEach(input=>input.addEventListener("change",()=>{const item=memos.find(entry=>entry.id===input.closest(".memo-item").dataset.memoId);if(!item||!canEdit())return;item.completed=input.checked;item.updatedAt=new Date().toISOString();saveMemos();renderMemos()}));
+      list.querySelectorAll(".edit-memo").forEach(button=>button.addEventListener("click",()=>{const item=memos.find(entry=>entry.id===button.closest(".memo-item").dataset.memoId);if(!item||!canEdit())return;const next=prompt("修改备忘内容",item.text)?.trim();if(!next)return;item.text=next.slice(0,300);item.updatedAt=new Date().toISOString();saveMemos();renderMemos()}));
+      list.querySelectorAll(".delete-memo").forEach(button=>button.addEventListener("click",()=>{const id=button.closest(".memo-item").dataset.memoId,item=memos.find(entry=>entry.id===id);if(!item||!canEdit()||!confirm(`确认删除“${item.text.slice(0,30)}”吗？`))return;memos=memos.filter(entry=>entry.id!==id);saveMemos();renderMemos()}));
+    }
+    function addMemo(){
+      if(!canEdit())return;const input=el("memoText"),text=input.value.trim();if(!text){input.focus();return}const type=el("memoType").value==="note"?"note":"todo",timestamp=new Date().toISOString();memos.unshift({id:`memo-${Date.now().toString(36)}-${Math.random().toString(16).slice(2,7)}`,type,text:text.slice(0,300),dueDate:normalizeMemoDate(el("memoDueDate").value),completed:false,createdAt:timestamp,updatedAt:timestamp});input.value="";el("memoDueDate").value="";saveMemos();renderMemos();input.focus();
+    }
     function renderOverview(){
+      renderMemos();
       const boardProjects=projects.filter(project=>projectMatchesFilters(project));
       el("overviewProjectCount").textContent=`${boardProjects.length} 个项目`;
       el("projectBoard").innerHTML=boardProjects.length?boardProjects.map(project=>{
@@ -2905,7 +2959,7 @@
       if(badge)badge.textContent=editable?"管理员权限":"普通查看权限";
       if(manageTab)manageTab.hidden=!editable;
       if(el("openProjectEditor"))el("openProjectEditor").hidden=!editable;
-      document.querySelectorAll("#scheduleEditorPanel input,#scheduleEditorPanel select,#scheduleEditorPanel textarea,#scheduleEditorPanel button,#projectEditors input,#projectEditors select,#projectEditors textarea,#projectEditors button,#weeklyProjectToolbarPicker input,#weeklyProjectToolbarPicker select,#weeklyProjectToolbarPicker button,#weekLabel,#resetReport,#saveReportSnapshot,#clearReportHistory,.delete-history,.restore-cloud-history,.material-task-toggle").forEach(control=>control.disabled=!editable);
+      document.querySelectorAll("#scheduleEditorPanel input,#scheduleEditorPanel select,#scheduleEditorPanel textarea,#scheduleEditorPanel button,#projectEditors input,#projectEditors select,#projectEditors textarea,#projectEditors button,#weeklyProjectToolbarPicker input,#weeklyProjectToolbarPicker select,#weeklyProjectToolbarPicker button,#memoCreate input,#memoCreate select,#memoCreate button,#weekLabel,#resetReport,#saveReportSnapshot,#clearReportHistory,.delete-history,.restore-cloud-history,.material-task-toggle").forEach(control=>control.disabled=!editable);
       document.querySelectorAll(".event").forEach(eventNode=>{
         const task=tasks.find(item=>item.id===eventNode.dataset.taskId);
         eventNode.draggable=Boolean(editable&&task&&taskEffectiveStatus(task)!=="completed");
@@ -2988,6 +3042,8 @@
     el("globalSearch").addEventListener("input",e=>{searchFilter=e.target.value.trim();render();showDetail(parse(TODAY))});
     el("showArchived").addEventListener("change",e=>{showArchived=e.target.checked;render();showDetail(parse(TODAY))});
     el("refreshCloudHistory").addEventListener("click",loadCloudHistory);
+    el("addMemo").addEventListener("click",addMemo);
+    el("memoText").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addMemo()}});
     el("calendarModeToggle").addEventListener("click",()=>{calendarLandscapeMode=calendarLandscapeMode==="compact"?"detailed":"compact";localStorage.setItem(CALENDAR_DISPLAY_KEY,calendarLandscapeMode);applyCalendarDisplayMode()});
     window.addEventListener("resize",applyCalendarDisplayMode);
     el("prevMonth").addEventListener("click",()=>{const d=new Date(currentYear,currentMonth-1,1);currentYear=d.getFullYear();currentMonth=d.getMonth();render()});
