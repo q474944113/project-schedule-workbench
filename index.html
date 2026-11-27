@@ -2468,6 +2468,7 @@
     }
     function projectSelectOptions(selected){return projects.map(project=>`<option value="${escapeHtml(project.id)}" ${project.id===selected?"selected":""}>${escapeHtml(project.name)}${project.archived?"（已归档）":""}</option>`).join("")}
     function taskMaterialSummary(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),names=list.filter(item=>selected.has(item.id)).map(item=>item.name);return!list.length?"项目通用节点":!selected.size?"全部子素材":names.length>2?`${names.slice(0,2).join("、")} +${names.length-2}`:names.join("、")}
+    function taskAlertMaterialDetail(task){const list=materialsForTask(task),names=list.map(item=>item.name),selected=taskMaterialIds(task).length>0;if(!names.length)return"项目通用节点";const visible=names.slice(0,4).join("、"),more=names.length>4?` 等 ${names.length} 条`:"";return selected?`${visible}${more}`:`全部 ${names.length} 条子素材：${visible}${more}`}
     function taskMaterialPickerMarkup(task){const list=materialsForProject(task.project),selected=new Set(taskMaterialIds(task)),summary=taskMaterialSummary(task);return`<details class="task-material-picker"><summary title="${escapeHtml(summary)}">${escapeHtml(summary)}</summary><div class="task-material-menu"><label class="task-material-option"><input type="checkbox" class="task-material-all" ${selected.size?"":"checked"}>全部子素材</label>${list.map(material=>`<label class="task-material-option"><input type="checkbox" class="task-material-check" value="${escapeHtml(material.id)}" ${selected.has(material.id)?"checked":""}>${escapeHtml(material.name)}</label>`).join("")}</div></details>`}
     const projectChannelChipsMarkup=(project,editable=false)=>channelSelectionList(project.channels).map(channel=>`<span class="project-channel-chip">${escapeHtml(channel)}${editable?`<button type="button" class="remove-project-channel" data-channel="${escapeHtml(channel)}" aria-label="移除${escapeHtml(channel)}">×</button>`:""}</span>`).join("");
     function projectChannelEditorMarkup(project){return`<div class="project-channel-editor"><strong>投放渠道</strong><div class="project-channel-body"><div class="project-channel-tags">${projectChannelChipsMarkup(project,true)||'<span class="project-manager-count">暂未填写</span>'}</div><div class="project-channel-entry"><input type="text" maxlength="60" placeholder="输入渠道，如 Moloco、Meta、Google"><button type="button" class="add-project-channel">＋ 添加渠道</button></div></div></div>`}
@@ -2816,17 +2817,17 @@
     function buildAlerts(){
       const alerts=[],today=parse(iso(new Date()));
       visibleTasks().forEach(task=>{
-        const project=projectById(task.project),end=parse(task.end),days=Math.round((end-today)/86400000);
+        const project=projectById(task.project),end=parse(task.end),days=Math.round((end-today)/86400000),materialSummary=taskMaterialSummary(task),materialDetail=taskAlertMaterialDetail(task);
         if(task.actualEnd)return;
         if(days<0){
           const incompleteMaterials=materialsForTask(task).filter(material=>!isMaterialTaskComplete(material,task));
           if(!incompleteMaterials.length)return;
           let delay=0,date=parse(task.end);date.setDate(date.getDate()+1);while(date<=today){if(!isRestDay(date))delay++;date.setDate(date.getDate()+1)}
-          alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 已延期 ${Math.max(1,delay)} 天 · 未完成`,detail:`计划 ${rangeText(task)}，未完成素材：${incompleteMaterials.map(material=>material.name).join("、")}。`});return
+          alerts.push({level:"high",title:`${projectName(task.project)} · ${materialSummary} · ${task.name} 已延期 ${Math.max(1,delay)} 天 · 未完成`,detail:`计划 ${rangeText(task)}，未完成素材：${incompleteMaterials.map(material=>material.name).join("、")}。`});return
         }
         if(taskEffectiveStatus(task)==="completed")return;
-        if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${task.name} 今日到期`,detail:`负责人：${project?.owner||"未填写"}。`});
-        else if(days>0&&task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${task.name} · 提交节点`,detail:`计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
+        if(days===0)alerts.push({level:"high",title:`${projectName(task.project)} · ${materialSummary} · ${task.name} 今日到期`,detail:`具体素材：${materialDetail} · 负责人：${project?.owner||"未填写"}。`});
+        else if(days>0&&task.submit)alerts.push({level:"medium",title:`${projectName(task.project)} · ${materialSummary} · ${task.name} · 提交节点`,detail:`具体素材：${materialDetail} · 计划提交：${formatDate(task.end)} · 负责人：${project?.owner||"未填写"}。`});
       });
       const token=searchFilter.toLowerCase();
       materials.forEach(material=>{
