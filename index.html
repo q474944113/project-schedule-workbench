@@ -228,7 +228,19 @@
     .schedule-editor { padding: 18px; }
     .schedule-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .schedule-editor-help { color: var(--muted); font-size: 12px; }
-    .schedule-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .schedule-editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .schedule-history-filter { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 7px 11px; border: 1px solid rgba(159,146,125,.42); border-radius: 14px; background: #f7f3e3; }
+    .schedule-history-filter .filter-check { color: #725d42; font-weight: 700; }
+    .schedule-history-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .schedule-kind-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 7px; color: var(--muted); font-size: 11px; }
+    .schedule-kind-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .schedule-kind-legend i { width: 9px; height: 9px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(96,76,53,.1); }
+    .schedule-kind-legend .milestone i { background: var(--orange); }
+    .schedule-kind-legend .production i { background: var(--blue); }
+    .schedule-kind-legend .revision i { background: var(--green); }
+    .schedule-kind-legend .supervision i { background: var(--supervision); }
+    .schedule-kind-legend .acceptance i { background: var(--acceptance); }
+    .schedule-kind-legend .packaging i { background: var(--packaging); }
     .manager-summary { display: none; cursor: pointer; font-weight: 700; }
     .project-manager { margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
     .project-create { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(125px, .7fr)) 120px 100px auto; gap: 8px; align-items: center; }
@@ -349,7 +361,16 @@
     .legend-projects { display: contents; }
     .schedule-editor-list { display: grid; gap: 8px; overflow-x: auto; }
 
-    .schedule-row { min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafafa; }
+    .schedule-row { --schedule-accent: var(--blue); --schedule-tint: var(--blue-soft); position: relative; min-width: 1510px; padding: 9px; border: 1px solid var(--line); border-left: 6px solid var(--schedule-accent); border-radius: 9px; background: linear-gradient(90deg,var(--schedule-tint) 0,rgba(255,253,247,.96) 22%,#fffdf7 100%); transition: border-color .18s ease,box-shadow .18s ease,opacity .18s ease; }
+    .schedule-row:hover { box-shadow: 0 5px 14px rgba(114,93,66,.1); }
+    .schedule-row.schedule-kind-milestone { --schedule-accent: var(--orange); --schedule-tint: var(--orange-soft); }
+    .schedule-row.schedule-kind-production { --schedule-accent: var(--blue); --schedule-tint: var(--blue-soft); }
+    .schedule-row.schedule-kind-supervision { --schedule-accent: var(--supervision); --schedule-tint: var(--supervision-soft); }
+    .schedule-row.schedule-kind-acceptance { --schedule-accent: var(--acceptance); --schedule-tint: var(--acceptance-soft); }
+    .schedule-row.schedule-kind-packaging { --schedule-accent: var(--packaging); --schedule-tint: var(--packaging-soft); }
+    .schedule-row.schedule-kind-revision { --schedule-accent: var(--green); --schedule-tint: var(--green-soft); }
+    .schedule-row.schedule-row-past { opacity: .72; }
+    .schedule-row [data-task-field="kind"] { border-color: var(--schedule-accent); background-color: var(--schedule-tint); }
     .schedule-row-summary { display: none; cursor: pointer; }
     .schedule-row-fields { display: grid; grid-template-columns: 120px 180px minmax(220px, 1fr) 140px 140px 140px 120px 105px minmax(110px, .5fr) 78px 52px 52px; gap: 7px; align-items: center; }
     .task-material-picker { position:relative; min-width:0; }
@@ -1042,6 +1063,23 @@
       .material-mini-card { width:100%; }
       .overview-section-head .archive-help { font-size:10px; }
     }
+    /* Final schedule color layer: keep node colors visible after the global Animal Island control theme. */
+    #scheduleEditorList .schedule-row {
+      border-color:var(--schedule-accent)!important;
+      border-left-width:9px!important;
+      background:var(--schedule-tint)!important;
+      box-shadow:0 3px 0 rgba(96,76,53,.14)!important;
+    }
+    #scheduleEditorList .schedule-row [data-task-field="kind"] {
+      border-color:var(--schedule-accent)!important;
+      background-color:var(--schedule-accent)!important;
+      color:#fff!important;
+      box-shadow:0 3px 0 rgba(96,76,53,.28)!important;
+      font-weight:800;
+    }
+    #scheduleEditorList .schedule-row.schedule-kind-milestone [data-task-field="kind"],
+    #scheduleEditorList .schedule-row.schedule-kind-revision [data-task-field="kind"] { color:#604c35!important; }
+    #scheduleEditorList .schedule-row.schedule-row-past { opacity:.68; filter:saturate(.72); }
   </style>
 </head>
 <body class="access-locked">
@@ -1199,9 +1237,11 @@
           <div class="schedule-editor-toolbar">
             <div>
               <div class="schedule-editor-help">日期列依次为：预计开始、预计结束、实际完成。实际完成日期留空视为正常；填写且晚于预计结束日时才判定延期。</div>
+              <div class="schedule-kind-legend" aria-label="节点颜色说明"><span class="milestone"><i></i>提交</span><span class="production"><i></i>制作</span><span class="revision"><i></i>修改</span><span class="supervision"><i></i>监修</span><span class="acceptance"><i></i>验收</span><span class="packaging"><i></i>打包</span></div>
               <div id="scheduleSaveStatus" class="save-status" aria-live="polite"></div>
             </div>
             <div class="schedule-editor-actions">
+              <div class="schedule-history-filter"><label class="filter-check"><input id="showPastScheduleTasks" type="checkbox"> 显示已过去节点</label><span id="pastScheduleTaskCount" class="schedule-history-count"></span></div>
               <button type="button" id="addScheduleTask">＋ 新增节点</button>
               <button type="button" id="resetSchedule">恢复原始排期</button>
             </div>
@@ -2040,8 +2080,9 @@
     let weeklyProjects=normalizeWeeklyProjects(loadWeeklyProjects(),projects);
     let reportHistory=loadReportHistory();
     let memos=loadMemos();
-    const CALENDAR_DISPLAY_KEY="project-workbench-calendar-display-v1";
+    const CALENDAR_DISPLAY_KEY="project-workbench-calendar-display-v1",SCHEDULE_HISTORY_VISIBILITY_KEY="project-workbench-show-past-schedule-v1";
     let calendarLandscapeMode=localStorage.getItem(CALENDAR_DISPLAY_KEY)==="compact"?"compact":"detailed";
+    let showPastScheduleTasks=localStorage.getItem(SCHEDULE_HISTORY_VISIBILITY_KEY)==="true";
     let currentYear=now.getFullYear(),currentMonth=now.getMonth(),currentView="overview",focusedProjectId="",projectFilter="all",projectStatusFilter="all",projectPriorityFilter="all",typeFilter="all",searchFilter="",showArchived=false,scheduleMaterialFocusId="",memoEditingId="",draggedTaskId="",dragCopy=false,dragDayOffset=0;
     const el=id=>document.getElementById(id);
     const canEdit=()=>window.WORKBENCH_ACCESS_ROLE==="admin";
@@ -2210,6 +2251,7 @@
       return"in_progress";
     }
     const taskEffectiveStatus=t=>t.actualEnd?"completed":taskStatusOverride(t)||automaticTaskStatus(t);
+    const isPastScheduleTask=t=>Boolean(t?.end&&t.end<TODAY&&taskEffectiveStatus(t)==="completed");
     function taskStatusSelectOptions(task){
       const automatic=automaticTaskStatus(task),override=taskStatusOverride(task);
       return`<option value="auto" ${override?"":"selected"}>自动判断（${taskStatusNames[automatic]}）</option>${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${override===value?"selected":""}>手动：${label}</option>`).join("")}`;
@@ -2495,9 +2537,12 @@
     function renderScheduleEditors(){
       renderMaterialNodeBoard();
       const focusedMaterial=scheduleMaterialFocusId?materialById(scheduleMaterialFocusId):null;
-      const list=visibleTasks().filter(task=>!focusedMaterial||taskAppliesToMaterial(task,focusedMaterial));
+      const matchingTasks=visibleTasks().filter(task=>!focusedMaterial||taskAppliesToMaterial(task,focusedMaterial)),pastTasks=matchingTasks.filter(isPastScheduleTask),list=showPastScheduleTasks?matchingTasks:matchingTasks.filter(task=>!isPastScheduleTask(task));
+      const historyToggle=el("showPastScheduleTasks"),historyCount=el("pastScheduleTaskCount");
+      historyToggle.checked=showPastScheduleTasks;
+      historyCount.textContent=pastTasks.length?(showPastScheduleTasks?`已显示 ${pastTasks.length} 个历史节点`:`已折叠 ${pastTasks.length} 个历史节点`):"暂无历史节点";
       const compact=window.matchMedia("(max-width: 560px)").matches;
-      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
+      el("scheduleEditorList").innerHTML=list.length?list.map(task=>`<details class="schedule-row schedule-kind-${taskKind(task)} ${isPastScheduleTask(task)?"schedule-row-past":""}" data-task-id="${escapeHtml(task.id)}" ${compact?"":"open"}><summary class="schedule-row-summary">${escapeHtml(projectLabel(task))} · ${escapeHtml(task.name)}<span>${formatDate(task.start)}—${formatDate(task.end)} · ${typeNames[taskKind(task)]}</span></summary><div class="schedule-row-fields"><select data-task-field="project" aria-label="项目">${projectSelectOptions(task.project)}</select>${taskMaterialPickerMarkup(task)}<input class="task-name" data-task-field="name" value="${escapeHtml(task.name)}" aria-label="节点名称"><input data-task-field="start" type="date" value="${task.start}" aria-label="预计开始日期" title="预计开始日期"><input data-task-field="end" type="date" value="${task.end}" aria-label="预计结束日期" title="预计结束日期"><input data-task-field="actualEnd" type="date" value="${task.actualEnd||""}" aria-label="实际完成日期" title="实际完成日期（留空视为正常）"><select data-task-field="kind" aria-label="节点类型"><option value="production" ${taskKind(task)==="production"?"selected":""}>制作任务</option><option value="supervision" ${taskKind(task)==="supervision"?"selected":""}>监修节点</option><option value="acceptance" ${taskKind(task)==="acceptance"?"selected":""}>验收节点</option><option value="packaging" ${taskKind(task)==="packaging"?"selected":""}>打包节点</option><option value="milestone" ${taskKind(task)==="milestone"?"selected":""}>提交节点</option><option value="revision" ${taskKind(task)==="revision"?"selected":""}>修改任务</option></select><select data-task-field="status" aria-label="节点状态">${Object.entries(taskStatusNames).map(([value,label])=>`<option value="${value}" ${taskEffectiveStatus(task)===value?"selected":""}>${label}</option>`).join("")}</select><input class="task-note" data-task-field="note" value="${escapeHtml(task.note||"")}" aria-label="简短说明"><button type="button" class="duplicate-schedule-task">复制</button><button type="button" class="delete-schedule-task ghost-danger">删除</button></div></details>`).join(""):pastTasks.length&&!showPastScheduleTasks?`<div class="schedule-empty">已折叠 ${pastTasks.length} 个已过去节点；勾选“显示已过去节点”即可查看。</div>`:'<div class="schedule-empty">当前筛选下没有排期节点。</div>';
       document.querySelectorAll('.schedule-row [data-task-field="status"]').forEach(control=>{const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;control.dataset.taskField="statusOverride";control.title="默认按预计日期和实际完成时间自动判断；异常时可手动覆盖";control.innerHTML=taskStatusSelectOptions(task)});
       document.querySelectorAll("[data-task-field]").forEach(control=>control.addEventListener("change",()=>{
         const task=tasks.find(item=>item.id===control.closest(".schedule-row").dataset.taskId);if(!task)return;
@@ -3048,6 +3093,7 @@
     el("typeFilter").addEventListener("change",e=>{typeFilter=e.target.value;render();showDetail(parse(TODAY))});
     el("globalSearch").addEventListener("input",e=>{searchFilter=e.target.value.trim();render();showDetail(parse(TODAY))});
     el("showArchived").addEventListener("change",e=>{showArchived=e.target.checked;render();showDetail(parse(TODAY))});
+    el("showPastScheduleTasks").addEventListener("change",e=>{showPastScheduleTasks=e.target.checked;localStorage.setItem(SCHEDULE_HISTORY_VISIBILITY_KEY,String(showPastScheduleTasks));renderScheduleEditors()});
     el("refreshCloudHistory").addEventListener("click",loadCloudHistory);
     el("addMemo").addEventListener("click",addMemo);
     el("memoText").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addMemo()}});
